@@ -1,4 +1,5 @@
 ﻿Imports Microsoft.Management.Infrastructure
+Imports System.Threading
 
 Namespace CIMitar
 
@@ -199,7 +200,6 @@ Namespace CIMitar
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			Me.Session = Session
 			Me.Namespace = [Namespace]
-			AsyncOptions.CancellationToken = CimCancellationSource.Token
 		End Sub
 
 		''' <param name="[Error]"></param>
@@ -219,24 +219,34 @@ Namespace CIMitar
 		''' </summary>
 		Protected Subscriber As IDisposable
 
+		Protected MustOverride Function InvokeOperation() As IObservable(Of SubscriberType)
+
 		''' <summary>
-		''' Subscribes to receive the results of an async CIM operation
+		''' Allows child classes to perform additional cleanup tasks following operation cancellation
 		''' </summary>
-		''' <param name="AsyncResult">Async result generated from starting an async CIM operation</param>
-		Protected Sub StartSubscriber(ByVal AsyncResult As IObservable(Of SubscriberType))
-			ClearLastOperation()
-			Dim Observer As New CimObserver(Of SubscriberType)(AddressOf ReportError, AddressOf ReportResult, AddressOf ReportCompletion)
-			Subscriber = AsyncResult.Subscribe(Observer)
+		Protected Overridable Sub CancellationCallback()
+			' override in child classes
 		End Sub
 
 		''' <summary>
-		''' Resets the object for disposal or to perform another operation
+		''' Subscribes to receive the results of an async CIM operation
 		''' </summary>
-		''' <param name="CompleteClean"></param>
-		Protected Overridable Sub ClearLastOperation(Optional ByVal CompleteClean As Boolean = False)
-			If CompleteClean Then
-				CimCancellationSource.Dispose()
-			End If
+		Protected Sub StartSubscriber()
+			Reset()
+			CimCancellationSource = New CancellationTokenSource
+			CimCancellationSource.Token.Register(Sub() CancellationCallback())
+			AsyncOptions.CancellationToken = CimCancellationSource.Token
+			Dim Observable As IObservable(Of SubscriberType) = InvokeOperation()
+			Dim Observer As New CimObserver(Of SubscriberType)(AddressOf ReportError, AddressOf ReportResult, AddressOf ReportCompletion)
+			Subscriber = Observable.Subscribe(Observer)
+		End Sub
+
+		''' <summary>
+		''' Resets the object for disposal or to perform another operation. Outstanding operations will silently run to completion; use Cancel() first to stop them.
+		''' </summary>
+		''' <param name="CompleteClean">True for a full-teardown, false to set the object up for a new operation</param>
+		Protected Overridable Sub Reset(Optional ByVal CompleteClean As Boolean = False)
+			CimCancellationSource?.Dispose()
 			Subscriber?.Dispose()
 			Subscriber = Nothing
 			_LastError?.Dispose()
@@ -245,7 +255,7 @@ Namespace CIMitar
 
 		Private _Namespace As String
 		Private _LastError As CimException
-		Private CimCancellationSource As New Threading.CancellationTokenSource()
+		Private CimCancellationSource As Threading.CancellationTokenSource
 
 		Protected Class CimObserver(Of ObserverType)
 			Implements IObserver(Of ObserverType)
@@ -289,7 +299,7 @@ Namespace CIMitar
 		Protected Overridable Sub Dispose(disposing As Boolean)
 			If Not disposedValue Then
 				If disposing Then
-					ClearLastOperation(True)
+					Reset(True)
 				End If
 			End If
 			disposedValue = True
@@ -304,28 +314,30 @@ Namespace CIMitar
 	Public MustInherit Class CimAsyncController(Of SubscriberType, ReturnType)
 		Inherits CimControllerBase(Of SubscriberType, ReturnType)
 
-		Protected CimCompletionTaskSource As New TaskCompletionSource(Of ReturnType)
+		Protected CimCompletionTaskSource As TaskCompletionSource(Of ReturnType)
 
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public Overrides Sub Cancel()
-			MyBase.Cancel()
+		Public MustOverride Function StartAsync() As Task(Of ReturnType)
+
+		Protected Overrides Sub CancellationCallback()
 			CimCompletionTaskSource?.TrySetCanceled()
 		End Sub
 
-		Public MustOverride Function StartAsync() As Task(Of ReturnType)
 		Protected Overrides Sub ReportError(ByVal [Error] As CimException)
 			MyBase.ReportError([Error])
 			CimCompletionTaskSource?.TrySetException([Error])
 		End Sub
 
-		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
-			If CompleteClean Then
-				CimCompletionTaskSource?.Task?.Dispose()
+		Protected Overrides Sub Reset(Optional CompleteClean As Boolean = False)
+			CimCompletionTaskSource?.Task?.Dispose()
+			CimCompletionTaskSource = Nothing
+			If Not CompleteClean Then
+				CimCompletionTaskSource = New TaskCompletionSource(Of ReturnType)
 			End If
-			MyBase.ClearLastOperation(CompleteClean)
+			MyBase.Reset(CompleteClean)
 		End Sub
 	End Class
 
@@ -343,12 +355,12 @@ Namespace CIMitar
 		End Sub
 
 		Protected Overrides Sub ReportCompletion()
-			CimCompletionTaskSource.TrySetResult(Instances)
+			CimCompletionTaskSource?.TrySetResult(Instances)
 		End Sub
 
-		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
+		Protected Overrides Sub Reset(Optional CompleteClean As Boolean = False)
 			Instances?.ClearWithDispose
-			MyBase.ClearLastOperation(CompleteClean)
+			MyBase.Reset(CompleteClean)
 		End Sub
 	End Class
 
@@ -363,8 +375,12 @@ Namespace CIMitar
 		End Sub
 
 		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
-			StartSubscriber(Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions))
+			StartSubscriber()
 			Return CimCompletionTaskSource.Task
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
+			Return Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions)
 		End Function
 	End Class
 
@@ -379,8 +395,12 @@ Namespace CIMitar
 		End Sub
 
 		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
-			StartSubscriber(Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions))
+			StartSubscriber()
 			Return CimCompletionTaskSource.Task
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
+			Return Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
 		End Function
 	End Class
 
@@ -415,11 +435,11 @@ Namespace CIMitar
 			CimCompletionTaskSource.TrySetResult(TryCast(Result, CimMethodResult))
 		End Sub
 
-		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
+		Protected Overrides Sub Reset(Optional CompleteClean As Boolean = False)
 			If Result IsNot Nothing AndAlso TypeOf Result Is IDisposable Then
 				CType(Result, IDisposable).Dispose()
 			End If
-			MyBase.ClearLastOperation(CompleteClean)
+			MyBase.Reset(CompleteClean)
 		End Sub
 	End Class
 
@@ -433,8 +453,12 @@ Namespace CIMitar
 		End Sub
 
 		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber(Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions))
+			StartSubscriber()
 			Return CimCompletionTaskSource.Task
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
+			Return Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions)
 		End Function
 	End Class
 
@@ -448,8 +472,12 @@ Namespace CIMitar
 		End Sub
 
 		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber(Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters))
+			StartSubscriber()
 			Return CimCompletionTaskSource.Task
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
+			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters)
 		End Function
 	End Class
 
@@ -465,8 +493,12 @@ Namespace CIMitar
 		End Sub
 
 		Public Sub Start()
-			StartSubscriber(Session.SubscribeAsync([Namespace], QueryLanguage, QueryText))
+			StartSubscriber()
 		End Sub
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimSubscriptionResult)
+			Return Session.SubscribeAsync([Namespace], QueryLanguage, QueryText)
+		End Function
 
 		Protected Overrides Sub ReportError([Error] As CimException)
 			MyBase.ReportError([Error])
