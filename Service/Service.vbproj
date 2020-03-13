@@ -73,12 +73,15 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncExtensions.vb" />
+    <Compile Include="GlobalConstants.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
     </Compile>
+    <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="WakeOnLanListener.vb" />
     <Compile Include="CIMController.vb" />
+    <Compile Include="WOLController.vb" />
     <Compile Include="WOLService.vb">
       <SubType>Component</SubType>
     </Compile>

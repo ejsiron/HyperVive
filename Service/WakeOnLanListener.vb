@@ -10,6 +10,8 @@ Public Class WakeOnLanListener
 		LegacyWOL = 7
 	End Enum
 
+	Private Const MACWatchTimeoutSeconds As Integer = 5
+
 	Private Canceller As CancellationTokenSource = Nothing
 
 	Public Event MagicPacketReceived(ByVal SenderIP As String, ByVal MacAddress As String)
@@ -17,23 +19,31 @@ Public Class WakeOnLanListener
 	Public Event ReceiverException(ByVal ExceptionType As String)
 	Public Event DebugMessage(ByVal Message As String)
 
+	Private Shared RecentMACs As List(Of String)
+
 	Public Async Sub Start(Optional ByVal DesiredPort As Integer = Ports.DefaultWOL)
+		RecentMACs = New List(Of String)
 		Dim CancelToken As CancellationToken
 		Canceller = New CancellationTokenSource
 		CancelToken = Canceller.Token
 		Dim ListenerEndpoint As New IPEndPoint(IPAddress.Any, DesiredPort)
 		Dim Listener As New UdpClient(ListenerEndpoint)
 		Dim ReceivedData As UdpReceiveResult
+		Dim ReceivedMac As String = String.Empty
+		Dim SenderIP As String = String.Empty
 
 		While Not CancelToken.IsCancellationRequested
 			Try
 				ReceivedData = Await Listener.ReceiveAsync().WithCancellation(CancelToken)
-				ExtractMACFromMagicPacket(ReceivedData.Buffer, ReceivedData.RemoteEndPoint.Address.ToString)
 			Catch opcancelex As OperationCanceledException
 				RaiseEvent OperationCanceled()
 			Catch ex As Exception
 				RaiseEvent ReceiverException(TypeName(ex))
 			End Try
+			ExtractMACFromMagicPacket(ReceivedData.Buffer, ReceivedMac)
+			If Not String.IsNullOrEmpty(ReceivedMac) Then
+				ProcessReceivedMAC(ReceivedData.RemoteEndPoint.Address.ToString, ReceivedMac)
+			End If
 		End While
 
 		[Stop]()
@@ -46,9 +56,12 @@ Public Class WakeOnLanListener
 			Canceller.Dispose()
 			Canceller = Nothing
 		End If
+		RecentMACs.Clear()
+		RecentMACs = Nothing
 	End Sub
 
-	Private Sub ExtractMACFromMagicPacket(ByRef DataBuffer As Byte(), ByRef SenderIP As String)
+	Private Sub ExtractMACFromMagicPacket(ByRef DataBuffer As Byte(), ByRef ReceivedMAC As String)
+		ReceivedMAC = String.Empty
 		' magic packet contents should be 102 bytes with an optional password
 		If DataBuffer.Length < 102 Then
 			Return
@@ -73,7 +86,23 @@ Public Class WakeOnLanListener
 		Next
 
 		' can only reach this point if the MAC was repeated 16 times
-		RaiseEvent MagicPacketReceived(SenderIP, TargetMac)
+		ReceivedMAC = TargetMac
+	End Sub
+
+	Private Sub ProcessReceivedMAC(ByVal SenderIP As String, ByVal MAC As String)
+		If RecentMACs?.Contains(MAC) Then
+			Return
+		End If
+		RaiseEvent MagicPacketReceived(SenderIP, MAC)
+
+		' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
+		' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time
+		' Add the MAC to a watch list and remove it after a countdown
+		RecentMACs.Add(MAC)
+		Task.Run(Sub()
+						Thread.Sleep(MACWatchTimeoutSeconds * 1000)
+						RecentMACs?.Remove(MAC)
+					End Sub)
 	End Sub
 
 #Region "IDisposable Support"
@@ -84,28 +113,14 @@ Public Class WakeOnLanListener
 		If Not disposedValue Then
 			If disposing Then
 				[Stop]()
-				' TODO: dispose managed state (managed objects).
 			End If
-
-			' TODO: free unmanaged resources (unmanaged objects) and override Finalize() below.
-			' TODO: set large fields to null.
 		End If
 		disposedValue = True
 	End Sub
 
-	' TODO: override Finalize() only if Dispose(disposing As Boolean) above has code to free unmanaged resources.
-	'Protected Overrides Sub Finalize()
-	'    ' Do not change this code.  Put cleanup code in Dispose(disposing As Boolean) above.
-	'    Dispose(False)
-	'    MyBase.Finalize()
-	'End Sub
-
 	' This code added by Visual Basic to correctly implement the disposable pattern.
 	Public Sub Dispose() Implements IDisposable.Dispose
-		' Do not change this code.  Put cleanup code in Dispose(disposing As Boolean) above.
 		Dispose(True)
-		' TODO: uncomment the following line if Finalize() is overridden above.
-		' GC.SuppressFinalize(Me)
 	End Sub
 #End Region
 End Class

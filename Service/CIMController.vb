@@ -1,253 +1,485 @@
 ﻿Imports Microsoft.Management.Infrastructure
-Imports Microsoft.Management.Infrastructure.Generic
-Imports System.Threading
 
-Public Module CustomCimEventArgs
-	Public Class CimErrorEventArgs
-		Inherits EventArgs
-		Public Property ErrorInstance As CimException
-	End Class
+Namespace CIMitar
 
-	Public Delegate Sub CimErrorEventHandler(ByVal sender As Object, ByVal e As CimErrorEventArgs)
+	''' <summary>
+	''' Utility extensions for built-in Microsoft.Management.Infrastructure objects
+	''' </summary>
+	Public Module CimExtensions
+		''' <summary>
+		''' Retrieves the <see cref="CimInstance"/> that triggered a CIM_Indication or __InstanceOperationEvent from a <see cref="CimSubscriptionResult"/> object
+		''' </summary>
+		''' <param name="SubscriptionEvent"></param>
+		''' <returns><see cref="CimInstance"/></returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function GetSourceInstance(ByVal SubscriptionEvent As CimSubscriptionResult) As CimInstance
+			Dim InstancePropertyName As String =
+				IIf(SubscriptionEvent.Instance.CimSystemProperties.ClassName.Substring(0, 3) = "CIM", "SourceInstance", "TargetInstance").ToString
+			Return CType((SubscriptionEvent.Instance.CimInstanceProperties(InstancePropertyName)?.Value), CimInstance)
+		End Function
 
-	Public Class CimInstancesReceivedArgs
-		Inherits EventArgs
-		Public Property Instances As List(Of CimInstance)
-	End Class
+		''' <summary>
+		''' Create a clone of a CimInstance.
+		''' </summary>
+		''' <param name="Instance">The <see cref="CimInstance"/> to clone</param>
+		''' <returns><see cref="CimInstance"/></returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function Clone(ByVal Instance As CimInstance) As CimInstance
+			Return New CimInstance(Instance)
+		End Function
 
-	Public Delegate Sub CimInstancesReceivedHandler(ByVal sender As Object, ByVal e As CimInstancesReceivedArgs)
-
-	Public Class CimResultReceivedArgs
-		Inherits EventArgs
-		Public Property Result As CimMethodResult
-	End Class
-
-	Public Delegate Sub CimResultReceivedHandler(ByVal sender As Object, ByVal e As CimResultReceivedArgs)
-
-	Public Class CimStreamedResultsReceivedArgs
-		Inherits EventArgs
-		Public Property Results As List(Of CimMethodStreamedResult)
-	End Class
-
-	Public Delegate Sub CimStreamedResultsReceivedHandler(ByVal sender As Object, ByVal e As CimStreamedResultsReceivedArgs)
-
-	Public Class CimEmptyCompletionArgs
-		Inherits EventArgs
-	End Class
-
-	Public Delegate Sub CimEmptyCompletionHandler(ByVal sender As Object, ByVal e As CimEmptyCompletionArgs)
-End Module
-
-Public Class CIMController
-	Implements IDisposable
-
-	Public Const DefaultNamespace As String = "root/CIMV2"
-	Public Property [Namespace] As String = DefaultNamespace
-
-	Private TargetSession As CimSession
-
-	Private Class CimObserver(Of T)
-		Implements IObserver(Of T)
-
-		Public Delegate Sub ReportErrorDelegate(ByRef [Error] As CimException)
-		Public Delegate Sub ReportInstancesDelegate(ByRef Instances As List(Of CimInstance))
-		Public Delegate Sub ReportMethodResultDelegate(ByRef Result As CimMethodResult)
-		Public Delegate Sub ReportMethodResultsDelegate(ByRef Results As List(Of CimMethodStreamedResult))
-		Public Delegate Sub ReportEmptyCompletionDelegate()
-
-		Public ReportError As ReportErrorDelegate
-		Public ReportInstances As ReportInstancesDelegate
-		Public ReportMethodResult As ReportMethodResultDelegate
-		Public ReportMethodResults As ReportMethodResultsDelegate
-		Public ReportEmptyCompletion As ReportEmptyCompletionDelegate
-
-		Private ReceivedInstances As List(Of CimInstance)
-
-		Private Shared Sub AddInstance(ByRef Observer As CimObserver(Of T), ByRef ReceivedInstance As CimInstance)
-			If Observer.ReceivedInstances Is Nothing Then
-				Observer.ReceivedInstances = New List(Of CimInstance)
-			End If
-			Observer.ReceivedInstances.Add(ReceivedInstance)
-		End Sub
-
-		Private ReceivedResults As List(Of CimMethodStreamedResult)
-
-		Private Shared Sub AddResult(ByRef Observer As CimObserver(Of T), ByRef ReceivedResult As CimMethodStreamedResult)
-			If Observer.ReceivedResults Is Nothing Then
-				Observer.ReceivedResults = New List(Of CimMethodStreamedResult)
-			End If
-			Observer.ReceivedResults.Add(ReceivedResult)
-		End Sub
-
-		Public Sub OnNext(value As T) Implements IObserver(Of T).OnNext
-			Select Case value.GetType()
-				Case GetType(CimInstance)
-					Dim ReceivedInstance As CimInstance = TryCast(value, CimInstance)
-					If ReceivedInstance IsNot Nothing Then
-						AddInstance(Me, ReceivedInstance)
-					End If
-				Case GetType(CimMethodResult)
-					If ReportMethodResult IsNot Nothing Then
-						Dim ReceivedResult As CimMethodResult = TryCast(value, CimMethodResult)
-						If ReceivedResult IsNot Nothing Then
-							ReportMethodResult(ReceivedResult)
-						End If
-					End If
-				Case GetType(CimMethodStreamedResult)
-					Dim ReceivedResult As CimMethodStreamedResult = TryCast(value, CimMethodStreamedResult)
-					If ReceivedResult IsNot Nothing Then
-						AddResult(Me, ReceivedResult)
-					End If
-				Case GetType(CimSubscriptionResult)
-					Dim ReceivedResult As CimSubscriptionResult = TryCast(value, CimSubscriptionResult)
-					If ReceivedResult IsNot Nothing Then
-						AddInstance(Me, ReceivedResult.Instance)
-					End If
-					OnCompleted()  ' subscription returns one instances and does not trigger oncompleted
-				Case Else
-					' should never receive any other types, TODO: raise error?
-			End Select
-		End Sub
-
-		Public Sub OnError([error] As Exception) Implements IObserver(Of T).OnError
-			If ReportError IsNot Nothing Then
-				ReportError(CType([error], CimException))
-			End If
-		End Sub
-
-		Public Sub OnCompleted() Implements IObserver(Of T).OnCompleted
-			If ReceivedInstances IsNot Nothing AndAlso ReportInstances IsNot Nothing Then
-				ReportInstances(ReceivedInstances)
-			ElseIf ReceivedResults IsNot Nothing AndAlso ReportMethodResults IsNot Nothing Then
-				ReportMethodResults(ReceivedResults)
-			ElseIf ReportEmptyCompletion IsNot Nothing Then
-				ReportEmptyCompletion()
-			End If
-		End Sub
-
-		Sub New(
-				 Optional ByRef ReportErrorFunction As ReportErrorDelegate = Nothing,
-				 Optional ByRef ReportInstancesFunction As ReportInstancesDelegate = Nothing,
-				 Optional ByRef ReportMethodResultFunction As ReportMethodResultDelegate = Nothing,
-				 Optional ByRef ReportMethodResultsFunction As ReportMethodResultsDelegate = Nothing
-				 )
-			ReportError = ReportErrorFunction
-			ReportInstances = ReportInstancesFunction
-			ReportMethodResult = ReportMethodResultFunction
-			ReportMethodResults = ReportMethodResultsFunction
-		End Sub
-
-	End Class
-
-	Public Event CimErrorOccurred As CimErrorEventHandler
-	Public Event CimInstancesReceived As CimInstancesReceivedHandler
-	Public Event CimResultReceived As CimResultReceivedHandler
-	Public Event CimStreamedResultsReceived As CimStreamedResultsReceivedHandler
-	Public Event CimEmptyCompletion As CimEmptyCompletionHandler
-
-	Private LastCimError As CimException = Nothing
-	Private Instances As List(Of CimInstance) = Nothing
-	Private Result As CimMethodResult = Nothing
-	Private Results As List(Of CimMethodStreamedResult) = Nothing
-
-	Sub New(ByRef TargetCimSession As CimSession, Optional ByVal CimNamespace As String = DefaultNamespace)
-		TargetSession = TargetCimSession
-		[Namespace] = CimNamespace
-	End Sub
-
-	Private Subscriber As IDisposable
-
-	Private Sub ClearLastOperation()
-		If Subscriber IsNot Nothing Then
-			Subscriber.Dispose()
-		End If
-		If LastCimError IsNot Nothing Then
-			LastCimError.Dispose()
-			LastCimError = Nothing
-		End If
-		If Instances IsNot Nothing Then
-			For Each Instance As CimInstance In Instances
-				Instance.Dispose()
+		''' <summary>
+		''' Disposes all items in a <see cref="List(Of CimInstance)"/> before removing them.
+		''' </summary>
+		''' <param name="InstanceList">A <see cref="List(Of CimInstance)"/> to clear.</param>
+		<Runtime.CompilerServices.Extension>
+		Public Sub ClearWithDispose(ByRef InstanceList As List(Of CimInstance))
+			For Each Instance As CimInstance In InstanceList
+				Instance?.Dispose()
 			Next
-			Instances.Clear()
-			Instances = Nothing
-		End If
-		If Result IsNot Nothing Then
-			Result.Dispose()
-			Result = Nothing
-		End If
-		If Results IsNot Nothing Then
-			Results.Clear()
-			Results = Nothing
-		End If
-	End Sub
+		End Sub
 
-	Private Sub ReportError(ByRef [Error] As CimException)
-		RaiseEvent CimErrorOccurred(Me, New CimErrorEventArgs With {.ErrorInstance = [Error]})
-	End Sub
+		''' <summary>
+		''' Adds "Dispose" to a <see cref="List(Of CimInstance)"/>. Disposes all items, then destroys the list.
+		''' </summary>
+		''' <param name="InstanceList">A <see cref="List(Of CimInstance)"/> to destroy.</param>
+		<Runtime.CompilerServices.Extension>
+		Public Sub Dispose(ByRef InstanceList As List(Of CimInstance))
+			ClearWithDispose(InstanceList)
+			InstanceList = Nothing
+		End Sub
 
-	Private Sub ReportInstances(ByRef Instances As List(Of CimInstance))
-		RaiseEvent CimInstancesReceived(Me, New CimInstancesReceivedArgs With {.Instances = Instances})
-	End Sub
+		''' <summary>
+		''' Clones a list of <see cref="Microsoft.Management.Infrastructure.CimInstance">CimInstance</see>
+		''' </summary>
+		''' <param name="Instances">A <see cref="List(Of CimInstance)"/> to clone</param>
+		''' <returns><see cref="List(Of CimInstance)"/></returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function Clone(ByVal Instances As List(Of CimInstance)) As List(Of CimInstance)
+			Dim NewList As New List(Of CimInstance)(Instances.Count)
+			For Each Instance As CimInstance In Instances
+				NewList.Add(Instance.Clone)
+			Next
+			Return NewList
+		End Function
 
-	Private Sub ReportResult(ByRef Result As CimMethodResult)
-		RaiseEvent CimResultReceived(Me, New CimResultReceivedArgs With {.Result = Result})
-	End Sub
-
-	Private Sub ReportResults(ByRef Results As List(Of CimMethodStreamedResult))
-		RaiseEvent CimStreamedResultsReceived(Me, New CimStreamedResultsReceivedArgs With {.Results = Results})
-	End Sub
-
-	Public Sub GetAllInstancesAsync(ByVal ClassName As String)
-		ClearLastOperation()
-		Dim InstanceObserver As New CimObserver(Of CimInstance)(ReportErrorFunction:=AddressOf ReportError, ReportInstancesFunction:=AddressOf ReportInstances)
-		Dim InstanceObservable As CimAsyncMultipleResults(Of CimInstance) = TargetSession.EnumerateInstancesAsync([Namespace], ClassName)
-		Subscriber = InstanceObservable.Subscribe(InstanceObserver)
-	End Sub
-
-	Public Sub InvokeMethodAsync(ByRef Instance As CimInstance, ByVal MethodName As String, Optional ByRef MethodParameters As CimMethodParametersCollection = Nothing)
-		Dim IsStatic As Boolean = False
-		ClearLastOperation()
-		If MethodParameters Is Nothing Then
-			MethodParameters = New CimMethodParametersCollection
-		End If
-		For Each MethodDeclaration As CimMethodDeclaration In Instance.CimClass.CimClassMethods
-			If MethodDeclaration.Name = MethodName Then
-				IsStatic = MethodDeclaration.Qualifiers("static") IsNot Nothing
+		''' <summary>
+		''' Given a <see cref="CimClass"/> and a method name, determines if the method is static to that CIM class or must run on an instance.
+		''' </summary>
+		''' <param name="[Class]">The <see cref="CimClass"/> to check.</param>
+		''' <param name="MethodName">The name of the method to check.</param>
+		''' <returns>True if the method is static for the class, False if it requires an instance.</returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function IsMethodStatic(ByVal [Class] As CimClass, ByVal MethodName As String) As Boolean
+			If [Class] IsNot Nothing AndAlso Not String.IsNullOrEmpty(MethodName) Then
+				For Each MethodDeclaration As CimMethodDeclaration In [Class].CimClassMethods
+					If MethodDeclaration.Name = MethodName AndAlso MethodDeclaration.Qualifiers("static") IsNot Nothing Then
+						Return True
+					End If
+				Next
 			End If
-		Next
-		Dim MethodObserver As New CimObserver(Of CimMethodResultBase)(ReportErrorFunction:=AddressOf ReportError, ReportMethodResultFunction:=AddressOf ReportResult, ReportMethodResultsFunction:=AddressOf ReportResults)
-		Dim MethodObservable As CimAsyncResult(Of CimMethodResult)
-		If IsStatic Then
-			MethodObservable = TargetSession.InvokeMethodAsync([Namespace], Instance.CimClass.CimSystemProperties.ClassName, MethodName, MethodParameters)
-		Else
-			MethodObservable = TargetSession.InvokeMethodAsync([Namespace], Instance, MethodName, MethodParameters)
-		End If
-		Subscriber = MethodObservable.Subscribe(MethodObserver)
-	End Sub
+			Return False
+		End Function
 
-	Public Sub InvokeMethodAsync(ByRef Instance As CimInstance, ByVal MethodName As String, ByRef MethodParameters As Dictionary(Of String, Object))
-		Dim Parameters As New CimMethodParametersCollection
-		For Each InputParameter As KeyValuePair(Of String, Object) In MethodParameters
-			Parameters.Add(CimMethodParameter.Create(InputParameter.Key, InputParameter.Value, 0))
-		Next
-		InvokeMethodAsync(Instance, MethodName, Parameters)
-	End Sub
+		''' <summary>
+		''' Extracts the string value from a CIM instance or system property
+		''' </summary>
+		''' <param name="Property">The <see cref="CimProperty"/> that contains the value to extract</param>
+		''' <returns><see cref="String"/></returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function GetValueString(ByVal [Property] As CimProperty) As String
+			Return [Property].Value.ToString
+		End Function
 
-#Region "IDisposable Support"
-	Private disposedValue As Boolean
+		''' <summary>
+		''' Shortcut method to extract the string value of a CIM instance property
+		''' </summary>
+		''' <param name="Instance"><see cref="CimInstance"/> that owns the property</param>
+		''' <param name="PropertyName">Name of the desired property</param>
+		''' <returns>The value of the property if present, otherwise an empty string.</returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function GetInstancePropertyValueString(ByVal Instance As CimInstance, ByVal PropertyName As String) As String
+			Dim StringValue As String = Instance.CimInstanceProperties(PropertyName)?.Value.ToString
+			Return IIf(String.IsNullOrEmpty(StringValue), String.Empty, StringValue).ToString
+		End Function
+	End Module
 
-	Protected Overridable Sub Dispose(disposing As Boolean)
-		If Not disposedValue Then
-			If disposing Then
-				ClearLastOperation()
+	Public Module CustomCimEvents
+		Public MustInherit Class CimEventArgs
+			Inherits EventArgs
+			Public Property Session As CimSession
+		End Class
+		Public Class CimErrorEventArgs
+			Inherits CimEventArgs
+			Public Property ErrorInstance As CimException
+		End Class
+
+		Public Delegate Sub CimErrorEventHandler(ByVal sender As Object, ByVal e As CimErrorEventArgs)
+
+		Public Class CimInstancesReceivedArgs
+			Inherits CimEventArgs
+			Public Property Instances As List(Of CimInstance)
+		End Class
+
+		Public Delegate Sub CimInstancesReceivedHandler(ByVal sender As Object, ByVal e As CimInstancesReceivedArgs)
+
+		Public Class CimResultReceivedArgs
+			Inherits CimEventArgs
+			Public Property Result As CimMethodResult
+		End Class
+
+		Public Delegate Sub CimResultReceivedHandler(ByVal sender As Object, ByVal e As CimResultReceivedArgs)
+
+		Public Class CimSubscribedEventReceivedArgs
+			Inherits CimEventArgs
+
+			Public Property SubscribedEvent As CimSubscriptionResult
+		End Class
+
+		Public Delegate Sub CimSubscribedEventReceivedHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs)
+
+		Public Class CimActionCompletedArgs
+			Inherits CimEventArgs
+		End Class
+
+		Public Delegate Sub CimActionCompletedHandler(ByVal sender As Object, ByVal e As CimActionCompletedArgs)
+	End Module
+
+	''' <summary>
+	''' Base class for all CIM activities.
+	''' </summary>
+	''' <typeparam name="SubscriberType">The CIM object type to watch for asynchronous events.</typeparam>
+	''' <typeparam name="ReturnType">The type that will return to asynchronous callers.</typeparam>
+	Public MustInherit Class CimControllerBase(Of SubscriberType, ReturnType)
+		Implements IDisposable
+
+		Public Const DefaultNamespace As String = "root/CIMV2"
+
+		''' <summary>
+		''' The CIM namespace that an activity operates in.
+		''' </summary>
+		''' <remarks>The CIM error handlers work well with invalid namespaces, but not with null or empty namespaces. Always ensure that the field contains something.</remarks>
+		''' <returns>The current CIM namespace of the activity.</returns>
+		Public Property [Namespace] As String
+			Get
+				Return _Namespace
+			End Get
+			Set(value As String)
+				If String.IsNullOrEmpty(value) Then
+					_Namespace = DefaultNamespace
+				Else
+					_Namespace = value
+				End If
+			End Set
+		End Property
+
+		''' <summary>
+		''' The most recent CIM error encountered by this activity. Null if no error has occurred.
+		''' </summary>
+		''' <returns><see cref="CimException"/> or null.</returns>
+		Public Property LastError As CimException
+			Protected Set(value As CimException)
+				_LastError = value
+			End Set
+			Get
+				Return _LastError
+			End Get
+		End Property
+
+		Public Overridable Sub Cancel()
+			CimCancellationSource?.Cancel()
+			Subscriber?.Dispose()
+		End Sub
+
+		''' <summary>
+		''' Creates a new CIM controller in the specified CIM session and namespace.
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			Me.Session = Session
+			Me.Namespace = [Namespace]
+			AsyncOptions.CancellationToken = CimCancellationSource.Token
+		End Sub
+
+		''' <param name="[Error]"></param>
+		Protected Overridable Sub ReportError(ByVal [Error] As CimException)
+			_LastError?.Dispose()
+			_LastError = [Error]
+		End Sub
+		Protected MustOverride Sub ReportResult(ByVal Result As SubscriberType)
+		Protected MustOverride Sub ReportCompletion()
+
+		Protected Const QueryLanguage As String = "WQL"
+		Protected Session As CimSession
+		Protected AsyncOptions As New Options.CimOperationOptions
+
+		''' <summary>
+		''' An object that will receive events and responses from the infrastructure.
+		''' </summary>
+		Protected Subscriber As IDisposable
+
+		''' <summary>
+		''' Subscribes to receive the results of an async CIM operation
+		''' </summary>
+		''' <param name="AsyncResult">Async result generated from starting an async CIM operation</param>
+		Protected Sub StartSubscriber(ByVal AsyncResult As IObservable(Of SubscriberType))
+			ClearLastOperation()
+			Dim Observer As New CimObserver(Of SubscriberType)(AddressOf ReportError, AddressOf ReportResult, AddressOf ReportCompletion)
+			Subscriber = AsyncResult.Subscribe(Observer)
+		End Sub
+
+		''' <summary>
+		''' Resets the object for disposal or to perform another operation
+		''' </summary>
+		''' <param name="CompleteClean"></param>
+		Protected Overridable Sub ClearLastOperation(Optional ByVal CompleteClean As Boolean = False)
+			If CompleteClean Then
+				CimCancellationSource.Dispose()
 			End If
-		End If
-		disposedValue = True
-	End Sub
-	Public Sub Dispose() Implements IDisposable.Dispose
-		Dispose(True)
-	End Sub
+			Subscriber?.Dispose()
+			Subscriber = Nothing
+			_LastError?.Dispose()
+			_LastError = Nothing
+		End Sub
+
+		Private _Namespace As String
+		Private _LastError As CimException
+		Private CimCancellationSource As New Threading.CancellationTokenSource()
+
+		Protected Class CimObserver(Of ObserverType)
+			Implements IObserver(Of ObserverType)
+
+			Public Delegate Sub ReportErrorDelegate(ByVal [Error] As CimException)
+			Public Delegate Sub ReportResultDelegate(ByVal Result As ObserverType)
+			Public Delegate Sub ReportCompletionDelegate()
+
+			Public ReportError As ReportErrorDelegate
+			Public ReportResult As ReportResultDelegate
+			Public ReportCompletion As ReportCompletionDelegate
+
+			Public Sub OnNext(value As ObserverType) Implements IObserver(Of ObserverType).OnNext
+				ReportResult?(CType(value, ObserverType))
+			End Sub
+
+			Public Sub OnError([error] As Exception) Implements IObserver(Of ObserverType).OnError
+				ReportError?(CType([error], CimException))
+			End Sub
+
+			Public Sub OnCompleted() Implements IObserver(Of ObserverType).OnCompleted
+				If ReportCompletion IsNot Nothing Then
+					ReportCompletion()
+				End If
+			End Sub
+
+			Sub New(
+					 ByVal ReportErrorSub As ReportErrorDelegate,
+					 ByVal ReportResultSub As ReportResultDelegate,
+					 ByVal ReportCompletionSub As ReportCompletionDelegate
+					 )
+				ReportError = ReportErrorSub
+				ReportResult = ReportResultSub
+				ReportCompletion = ReportCompletionSub
+			End Sub
+
+		End Class
+
+#Region "CimControllerBase IDisposable Support"
+		Private disposedValue As Boolean
+		Protected Overridable Sub Dispose(disposing As Boolean)
+			If Not disposedValue Then
+				If disposing Then
+					ClearLastOperation(True)
+				End If
+			End If
+			disposedValue = True
+		End Sub
+
+		Public Sub Dispose() Implements IDisposable.Dispose
+			Dispose(True)
+		End Sub
 #End Region
+	End Class
 
-End Class
+	Public MustInherit Class CimAsyncController(Of SubscriberType, ReturnType)
+		Inherits CimControllerBase(Of SubscriberType, ReturnType)
+
+		Protected CimCompletionTaskSource As New TaskCompletionSource(Of ReturnType)
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Overrides Sub Cancel()
+			MyBase.Cancel()
+			CimCompletionTaskSource?.TrySetCanceled()
+		End Sub
+
+		Public MustOverride Function StartAsync() As Task(Of ReturnType)
+		Protected Overrides Sub ReportError(ByVal [Error] As CimException)
+			MyBase.ReportError([Error])
+			CimCompletionTaskSource?.TrySetException([Error])
+		End Sub
+
+		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
+			If CompleteClean Then
+				CimCompletionTaskSource?.Task?.Dispose()
+			End If
+			MyBase.ClearLastOperation(CompleteClean)
+		End Sub
+	End Class
+
+	Public MustInherit Class CimAsyncInstanceController
+		Inherits CimAsyncController(Of CimInstance, List(Of CimInstance))
+
+		Private Instances As New List(Of CimInstance)
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Protected Overrides Sub ReportResult(Result As CimInstance)
+			Instances.Add(Result)
+		End Sub
+
+		Protected Overrides Sub ReportCompletion()
+			CimCompletionTaskSource.TrySetResult(Instances)
+		End Sub
+
+		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
+			Instances?.ClearWithDispose
+			MyBase.ClearLastOperation(CompleteClean)
+		End Sub
+	End Class
+
+	Public Class CimAsyncEnumerateInstancesController
+		Inherits CimAsyncInstanceController
+
+		Public Property ClassName As String
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal ClassName As String = "")
+			MyBase.New(Session, [Namespace])
+			Me.ClassName = ClassName
+		End Sub
+
+		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
+			StartSubscriber(Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions))
+			Return CimCompletionTaskSource.Task
+		End Function
+	End Class
+
+	Public Class CimAsyncQueryInstancesController
+		Inherits CimAsyncInstanceController
+
+		Public Property QueryText As String
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal QueryText As String = "")
+			MyBase.New(Session, [Namespace])
+			Me.QueryText = QueryText
+		End Sub
+
+		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
+			StartSubscriber(Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions))
+			Return CimCompletionTaskSource.Task
+		End Function
+	End Class
+
+	Public MustInherit Class CimAsyncInvokeMethodControllerBase
+		Inherits CimAsyncController(Of CimMethodResultBase, CimMethodResult)
+
+		Private Result As CimMethodResultBase
+
+		Public Property MethodName As String
+		Public Property InputParameters As New CimMethodParametersCollection
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Shared Function InvokeMethodControllerFactory(ByVal Session As CimSession, ByVal Instance As CimInstance, ByVal MethodName As String) As CimAsyncInvokeMethodControllerBase
+			If Instance Is Nothing OrElse String.IsNullOrEmpty(MethodName) Then
+				Return Nothing
+			End If
+			If Instance.CimClass.IsMethodStatic(MethodName) Then
+				Return New CimAsyncInvokeClassMethodController(Session, Instance.CimSystemProperties.Namespace) With {.ClassName = Instance.CimSystemProperties.ClassName, .MethodName = MethodName}
+			Else
+				Return New CimAsyncInvokeInstanceMethodController(Session, Instance.CimSystemProperties.Namespace) With {.Instance = Instance, .MethodName = MethodName}
+			End If
+		End Function
+
+		Protected Overrides Sub ReportResult(Result As CimMethodResultBase)
+			Me.Result = Result
+		End Sub
+
+		Protected Overrides Sub ReportCompletion()
+			CimCompletionTaskSource.TrySetResult(TryCast(Result, CimMethodResult))
+		End Sub
+
+		Protected Overrides Sub ClearLastOperation(Optional CompleteClean As Boolean = False)
+			If Result IsNot Nothing AndAlso TypeOf Result Is IDisposable Then
+				CType(Result, IDisposable).Dispose()
+			End If
+			MyBase.ClearLastOperation(CompleteClean)
+		End Sub
+	End Class
+
+	Public Class CimAsyncInvokeInstanceMethodController
+		Inherits CimAsyncInvokeMethodControllerBase
+
+		Public Property Instance As CimInstance
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
+			StartSubscriber(Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions))
+			Return CimCompletionTaskSource.Task
+		End Function
+	End Class
+
+	Public Class CimAsyncInvokeClassMethodController
+		Inherits CimAsyncInvokeMethodControllerBase
+
+		Public Property ClassName As String
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
+			StartSubscriber(Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters))
+			Return CimCompletionTaskSource.Task
+		End Function
+	End Class
+
+	Public Class CimSubscriptionController
+		Inherits CimControllerBase(Of CimSubscriptionResult, CimSubscriptionResult)
+
+		Public Event ErrorOccurred As CimErrorEventHandler
+		Public Event EventReceived As CimSubscribedEventReceivedHandler
+
+		Public Property QueryText As String
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Sub Start()
+			StartSubscriber(Session.SubscribeAsync([Namespace], QueryLanguage, QueryText))
+		End Sub
+
+		Protected Overrides Sub ReportError([Error] As CimException)
+			MyBase.ReportError([Error])
+			RaiseEvent ErrorOccurred(Me, New CimErrorEventArgs With {.Session = Session, .ErrorInstance = [Error]})
+		End Sub
+
+		Protected Overrides Sub ReportResult(Result As CimSubscriptionResult)
+			RaiseEvent EventReceived(Me, New CimSubscribedEventReceivedArgs With {.Session = Session, .SubscribedEvent = Result})
+		End Sub
+
+		Protected Overrides Sub ReportCompletion()
+			' subscriptions do not report completion
+		End Sub
+	End Class
+
+End Namespace
