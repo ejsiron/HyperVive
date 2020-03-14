@@ -10,9 +10,6 @@ Public Class VMNetAdapterInventory
 
 	Public Property CurrentAdapters As List(Of AdapterEntry)
 
-	Private Const CimClassNameSyntheticAdapter As String = "Msvm_SyntheticEthernetPort"
-	Private Const CimClassNameEmulatedAdapter As String = "Msvm_EmulatedEthernetPort"
-
 	Private TargetSession As CimSession
 	Private WithEvents SyntheticAdapterCreateSubscriber As CimSubscriptionController
 	Private WithEvents SyntheticAdapterChangeSubscriber As CimSubscriptionController
@@ -26,12 +23,30 @@ Public Class VMNetAdapterInventory
 		e.SubscribedEvent.Dispose()
 	End Sub
 
+	Private Sub OnChangeAdapter(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles SyntheticAdapterChangeSubscriber.EventReceived, EmulatedAdapterChangeSubscriber.EventReceived
+		Dim AdapterInstance As CimInstance = e.SubscribedEvent.GetSourceInstance
+		Dim AdapterFound As Boolean = False
+		SyncLock CurrentAdapters
+			CurrentAdapters.Where(
+				Function(SearchAdapter As AdapterEntry) SearchAdapter.DeviceID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameDeviceID)
+				).ToList.ForEach(Sub(MatchAdapter As AdapterEntry)
+										  MatchAdapter.MAC = AdapterInstance.GetInstancePropertyValueString(CimPropertyNamePermanentAddress)
+										  MatchAdapter.VMID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameSystemName)
+										  AdapterFound = True
+									  End Sub)
+		End SyncLock
+		If Not AdapterFound Then
+			AddAdapter(AdapterInstance)
+		End If
+		e.SubscribedEvent.Dispose()
+	End Sub
+
 	Private Sub AddAdapter(ByVal AdapterInstance As CimInstance)
 		SyncLock CurrentAdapters
 			CurrentAdapters.Add(New AdapterEntry With {
-			.DeviceID = AdapterInstance.GetInstancePropertyValueString("DeviceID"),
-			.MAC = AdapterInstance.GetInstancePropertyValueString("PermanentAddress"),
-			.VMID = AdapterInstance.GetInstancePropertyValueString("SystemName")
+			.DeviceID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameDeviceID),
+			.MAC = AdapterInstance.GetInstancePropertyValueString(CimPropertyNamePermanentAddress),
+			.VMID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameSystemName)
 			})
 		End SyncLock
 	End Sub
