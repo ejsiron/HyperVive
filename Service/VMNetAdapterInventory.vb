@@ -28,8 +28,8 @@ Public Class VMNetAdapterInventory
 		Dim AdapterFound As Boolean = False
 		SyncLock CurrentAdapters
 			CurrentAdapters.Where(
-				Function(SearchAdapter As AdapterEntry) SearchAdapter.DeviceID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameDeviceID)
-				).ToList.ForEach(Sub(MatchAdapter As AdapterEntry)
+				Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.DeviceID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameDeviceID)
+				).ToList.ForEach(Sub(ByVal MatchAdapter As AdapterEntry)
 										  MatchAdapter.MAC = AdapterInstance.GetInstancePropertyValueString(CimPropertyNamePermanentAddress)
 										  MatchAdapter.VMID = AdapterInstance.GetInstancePropertyValueString(CimPropertyNameSystemName)
 										  AdapterFound = True
@@ -39,6 +39,13 @@ Public Class VMNetAdapterInventory
 			AddAdapter(AdapterInstance)
 		End If
 		e.SubscribedEvent.Dispose()
+	End Sub
+
+	Public Sub OnDeleteAdapter(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles SyntheticAdapterDeleteSubscriber.EventReceived, EmulatedAdapterDeleteSubscriber.EventReceived
+		Dim AdapterInstance As CimInstance = e.SubscribedEvent.GetSourceInstance
+		SyncLock CurrentAdapters
+			CurrentAdapters.RemoveAll(Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.DeviceID = AdapterInstance.GetInstancePropertyValueString("DeviceID"))
+		End SyncLock
 	End Sub
 
 	Private Sub AddAdapter(ByVal AdapterInstance As CimInstance)
@@ -69,11 +76,13 @@ Public Class VMNetAdapterInventory
 	End Sub
 
 	Public Async Sub Reset()
-		If CurrentAdapters Is Nothing Then
-			CurrentAdapters = New List(Of AdapterEntry)
-		Else
-			CurrentAdapters.Clear()
-		End If
+		SyncLock CurrentAdapters
+			If CurrentAdapters Is Nothing Then
+				CurrentAdapters = New List(Of AdapterEntry)
+			Else
+				CurrentAdapters.Clear()
+			End If
+		End SyncLock
 
 		SyntheticAdapterCreateSubscriber.Cancel()
 		SyntheticAdapterChangeSubscriber.Cancel()
