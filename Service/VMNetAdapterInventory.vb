@@ -1,5 +1,6 @@
 ﻿Imports WOLService.CIMitar
 Imports Microsoft.Management.Infrastructure
+Imports System.ServiceProcess
 
 Public Class VMNetAdapterInventory
 	Public Structure AdapterEntry
@@ -10,6 +11,7 @@ Public Class VMNetAdapterInventory
 
 	Public Property CurrentAdapters As List(Of AdapterEntry)
 
+	Private ServiceLog As EventLog
 	Private TargetSession As CimSession
 	Private WithEvents SyntheticAdapterCreateSubscriber As CimSubscriptionController
 	Private WithEvents SyntheticAdapterChangeSubscriber As CimSubscriptionController
@@ -58,7 +60,8 @@ Public Class VMNetAdapterInventory
 		End SyncLock
 	End Sub
 
-	Public Sub New(ByRef TargetSession As CimSession)
+	Public Sub New(ByRef TargetSession As CimSession, ByVal Log As EventLog)
+		ServiceLog = Log
 		Me.TargetSession = TargetSession
 		SyntheticAdapterCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
 			.QueryText = String.Format(CimSelectEventTemplate, CimInstanceCreationClassName, 1, CimClassNameSyntheticAdapter)}
