@@ -1,12 +1,14 @@
 ﻿Imports Microsoft.Management.Infrastructure
 Public Class WOLService
-	Private WithEvents WOLListener As WakeOnLanListener
 	Private LocalCimSession As CimSession
+	Private WithEvents AdapterInventory As VMNetAdapterInventory
+	Private WithEvents WOLListener As WakeOnLanListener
 
 	Protected Overrides Sub OnStart(ByVal args() As String)
 		' Add code here to start your service. This method should set things
 		' in motion so your service can do its work.
 		LocalCimSession = CimSession.Create(Nothing)
+		AdapterInventory = New VMNetAdapterInventory(LocalCimSession, EventLog)
 		WOLListener = New WakeOnLanListener
 		WOLListener.Start()
 	End Sub

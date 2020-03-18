@@ -50,6 +50,7 @@
   <ItemGroup>
     <Reference Include="Microsoft.Management.Infrastructure" />
     <Reference Include="System" />
+    <Reference Include="System.Configuration.Install" />
     <Reference Include="System.Data" />
     <Reference Include="System.Deployment" />
     <Reference Include="System.ServiceProcess" />
@@ -77,6 +78,12 @@
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
+    </Compile>
+    <Compile Include="ProjectInstaller.Designer.vb">
+      <DependentUpon>ProjectInstaller.vb</DependentUpon>
+    </Compile>
+    <Compile Include="ProjectInstaller.vb">
+      <SubType>Component</SubType>
     </Compile>
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="WakeOnLanListener.vb" />
@@ -106,6 +113,9 @@
       <LastGenOutput>Resources.Designer.vb</LastGenOutput>
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <EmbeddedResource Include="ProjectInstaller.resx">
+      <DependentUpon>ProjectInstaller.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="WOLService.resx">
       <DependentUpon>WOLService.vb</DependentUpon>

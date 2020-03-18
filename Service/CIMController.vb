@@ -89,7 +89,8 @@ Namespace CIMitar
 		''' <returns><see cref="String"/></returns>
 		<Runtime.CompilerServices.Extension>
 		Public Function GetValueString(ByVal [Property] As CimProperty) As String
-			Return [Property].Value.ToString
+			Dim StringValue As String = [Property]?.Value?.ToString
+			Return IIf(String.IsNullOrEmpty(StringValue), String.Empty, StringValue).ToString
 		End Function
 
 		''' <summary>
@@ -100,8 +101,7 @@ Namespace CIMitar
 		''' <returns>The value of the property if present, otherwise an empty string.</returns>
 		<Runtime.CompilerServices.Extension>
 		Public Function GetInstancePropertyValueString(ByVal Instance As CimInstance, ByVal PropertyName As String) As String
-			Dim StringValue As String = Instance.CimInstanceProperties(PropertyName)?.Value.ToString
-			Return IIf(String.IsNullOrEmpty(StringValue), String.Empty, StringValue).ToString
+			Return GetValueString(Instance.CimInstanceProperties(PropertyName))
 		End Function
 	End Module
 

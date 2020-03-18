@@ -30,7 +30,6 @@ Public Class WakeOnLanListener
 		Dim Listener As New UdpClient(ListenerEndpoint)
 		Dim ReceivedData As UdpReceiveResult
 		Dim ReceivedMac As String = String.Empty
-		Dim SenderIP As String = String.Empty
 
 		While Not CancelToken.IsCancellationRequested
 			Try
@@ -45,9 +44,6 @@ Public Class WakeOnLanListener
 				ProcessReceivedMAC(ReceivedData.RemoteEndPoint.Address.ToString, ReceivedMac)
 			End If
 		End While
-
-		[Stop]()
-		CancelToken = Nothing
 	End Sub
 
 	Public Sub [Stop]()
@@ -63,7 +59,7 @@ Public Class WakeOnLanListener
 	Private Sub ExtractMACFromMagicPacket(ByRef DataBuffer As Byte(), ByRef ReceivedMAC As String)
 		ReceivedMAC = String.Empty
 		' magic packet contents should be 102 bytes with an optional password
-		If DataBuffer.Length < 102 Then
+		If DataBuffer Is Nothing OrElse DataBuffer.Length < 102 Then
 			Return
 		End If
 
