@@ -6,8 +6,8 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{A34AE431-FED5-48A7-AC75-463ADD8B6072}</ProjectGuid>
     <OutputType>WinExe</OutputType>
-    <StartupObject>WOLService.WOLService</StartupObject>
-    <RootNamespace>WOLService</RootNamespace>
+    <StartupObject>HyperVive.HyperViveService</StartupObject>
+    <RootNamespace>HyperVive</RootNamespace>
     <AssemblyName>HyperVive</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Console</MyType>
@@ -78,6 +78,7 @@
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
+      <DesignTime>True</DesignTime>
     </Compile>
     <Compile Include="ProjectInstaller.Designer.vb">
       <DependentUpon>ProjectInstaller.vb</DependentUpon>
@@ -88,12 +89,12 @@
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="WakeOnLanListener.vb" />
     <Compile Include="CIMController.vb" />
-    <Compile Include="WOLController.vb" />
-    <Compile Include="WOLService.vb">
+    <Compile Include="VMController.vb" />
+    <Compile Include="HyperViveService.vb">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="WOLService.Designer.vb">
-      <DependentUpon>WOLService.vb</DependentUpon>
+    <Compile Include="HyperViveService.Designer.vb">
+      <DependentUpon>HyperViveService.vb</DependentUpon>
     </Compile>
     <Compile Include="My Project\AssemblyInfo.vb" />
     <Compile Include="My Project\Resources.Designer.vb">
@@ -117,8 +118,8 @@
     <EmbeddedResource Include="ProjectInstaller.resx">
       <DependentUpon>ProjectInstaller.vb</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="WOLService.resx">
-      <DependentUpon>WOLService.vb</DependentUpon>
+    <EmbeddedResource Include="HyperViveService.resx">
+      <DependentUpon>HyperViveService.vb</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>

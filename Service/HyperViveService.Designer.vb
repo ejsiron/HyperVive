@@ -1,7 +1,7 @@
 ﻿Imports System.ServiceProcess
 
 <Global.Microsoft.VisualBasic.CompilerServices.DesignerGenerated()> _
-Partial Class WOLService
+Partial Class HyperViveService
 	Inherits System.ServiceProcess.ServiceBase
 
 	'UserService overrides dispose to clean up the component list.
@@ -28,7 +28,7 @@ Partial Class WOLService
 		'
 		'   ServicesToRun = New System.ServiceProcess.ServiceBase () {New Service1, New MySecondUserService}
 		'
-		ServicesToRun = New System.ServiceProcess.ServiceBase() {New WOLService}
+		ServicesToRun = New System.ServiceProcess.ServiceBase() {New HyperViveService}
 
 		System.ServiceProcess.ServiceBase.Run(ServicesToRun)
 	End Sub

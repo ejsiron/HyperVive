@@ -21,26 +21,26 @@
 	'Do not modify it using the code editor.
 	<System.Diagnostics.DebuggerStepThrough()>
 	Private Sub InitializeComponent()
-		Me.WOLServiceProcessInstaller = New System.ServiceProcess.ServiceProcessInstaller()
-		Me.WOLServiceInstaller = New System.ServiceProcess.ServiceInstaller()
+		Me.HyperViveServiceProcessInstaller = New System.ServiceProcess.ServiceProcessInstaller()
+		Me.HyperViveServiceInstaller = New System.ServiceProcess.ServiceInstaller()
 		'
-		'WOLServiceProcessInstaller
+		'HyperViveServiceProcessInstaller
 		'
-		Me.WOLServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalSystem
-		Me.WOLServiceProcessInstaller.Password = Nothing
-		Me.WOLServiceProcessInstaller.Username = Nothing
+		Me.HyperViveServiceProcessInstaller.Account = System.ServiceProcess.ServiceAccount.LocalSystem
+		Me.HyperViveServiceProcessInstaller.Password = Nothing
+		Me.HyperViveServiceProcessInstaller.Username = Nothing
 		'
-		'WOLServiceInstaller
+		'HyperViveServiceInstaller
 		'
-		Me.WOLServiceInstaller.DisplayName = "Hyper-Vive"
-		Me.WOLServiceInstaller.ServiceName = "HyperVive"
+		Me.HyperViveServiceInstaller.DisplayName = "Hyper-Vive"
+		Me.HyperViveServiceInstaller.ServiceName = "HyperVive"
 		'
 		'ProjectInstaller
 		'
-		Me.Installers.AddRange(New System.Configuration.Install.Installer() {Me.WOLServiceProcessInstaller, Me.WOLServiceInstaller})
+		Me.Installers.AddRange(New System.Configuration.Install.Installer() {Me.HyperViveServiceProcessInstaller, Me.HyperViveServiceInstaller})
 
 	End Sub
 
-	Friend WithEvents WOLServiceProcessInstaller As ServiceProcess.ServiceProcessInstaller
-	Friend WithEvents WOLServiceInstaller As ServiceProcess.ServiceInstaller
+	Friend WithEvents HyperViveServiceProcessInstaller As ServiceProcess.ServiceProcessInstaller
+	Friend WithEvents HyperViveServiceInstaller As ServiceProcess.ServiceInstaller
 End Class

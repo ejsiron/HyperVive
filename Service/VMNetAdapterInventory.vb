@@ -1,4 +1,5 @@
-﻿Imports WOLService.CIMitar
+﻿Imports HyperVive.HyperViveService
+Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 
 Public Class VMNetAdapterInventory
@@ -9,7 +10,31 @@ Public Class VMNetAdapterInventory
 		Public Property MAC As String
 	End Structure
 
-	Public Property CurrentAdapters As List(Of AdapterEntry)
+	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
+
+	Private Function ExtractVmIDFromInstanceID(ByVal InstanceID As String) As String
+		' InstanceID looks like this: Microsoft:A37EAECD-3442-4052-A124-B25562636069\9E9FB56B-418C-49A9-A191-5238EACEE8A1
+		' synthetic adapters have an additional location, like \2
+		' VmID is the first GUID
+		Try
+			Return InstanceID.Substring(InstanceID.IndexOf(":") + 1, 36) ' start 1 past the ":" char, then consume the length of a GUID plus hyphens
+		Catch ex As Exception
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Invalid network adapter instance id: {0}", InstanceID)})
+			Return Guid.Empty.ToString
+		End Try
+	End Function
+
+	Public Function GetVmIDFromMac(ByVal MacAddress As String) As List(Of String)
+		Dim MatchingMacs As New List(Of String)
+		SyncLock AdaptersLock
+			CurrentAdapters.Where(Function(SearchAdapter As AdapterEntry) SearchAdapter.MAC = MacAddress
+				).ToList.ForEach(Sub(MatchingAdapter As AdapterEntry) MatchingMacs.Add(ExtractVmIDFromInstanceID(MatchingAdapter.InstanceID)))
+		End SyncLock
+		Return MatchingMacs
+	End Function
+
+	Private AdaptersLock As Object
+	Private Property CurrentAdapters As List(Of AdapterEntry)
 
 	Private ServiceLog As EventLog
 	Private TargetSession As CimSession
@@ -33,7 +58,9 @@ Public Class VMNetAdapterInventory
 		Dim NewAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(NewAdapter.MAC) Then
 			AddAdapter(NewAdapter)
-			ServiceLog.WriteEntry(String.Format("Registered new virtual adapter with MAC {0}", NewAdapter.MAC), EventLogEntryType.Information)
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Registered new virtual adapter with MAC {0}", NewAdapter.MAC)})
+		Else
+
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
@@ -42,7 +69,7 @@ Public Class VMNetAdapterInventory
 		Dim AdapterFound As Boolean = False
 		Dim ChangedAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(ChangedAdapter.MAC) Then
-			SyncLock CurrentAdapters
+			SyncLock AdaptersLock
 				CurrentAdapters.Where(
 					Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.InstanceID = ChangedAdapter.InstanceID
 					).ToList.ForEach(Sub(ByVal MatchAdapter As AdapterEntry)
@@ -65,7 +92,7 @@ Public Class VMNetAdapterInventory
 		Dim ChangedAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(ChangedAdapter.MAC) Then
 			Dim RemovedAdapterCount As Integer = 0
-			SyncLock CurrentAdapters
+			SyncLock AdaptersLock
 				RemovedAdapterCount = CurrentAdapters.RemoveAll(Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.InstanceID = ChangedAdapter.InstanceID)
 			End SyncLock
 			ServiceLog.WriteEntry(String.Format("Deleted {0} adapter(s)", RemovedAdapterCount))
@@ -80,17 +107,16 @@ Public Class VMNetAdapterInventory
 
 	Private Sub AddAdapter(ByVal NewAdapter As AdapterEntry)
 		If Not String.IsNullOrEmpty(NewAdapter.MAC) Then
-			SyncLock CurrentAdapters
+			SyncLock AdaptersLock
 				CurrentAdapters.Add(CType(NewAdapter, AdapterEntry))
 			End SyncLock
 		End If
 	End Sub
 
 	Public Sub New(ByRef TargetSession As CimSession, ByVal Log As EventLog)
+		ServiceLog = Log
+		Me.TargetSession = TargetSession
 		Try
-			CurrentAdapters = New List(Of AdapterEntry)
-			ServiceLog = Log
-			Me.TargetSession = TargetSession
 			SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
 				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceCreationClassName, 1, CimClassNameSyntheticAdapterSettingData)}
 			SyntheticAdapterSettingsChangeSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
@@ -110,20 +136,21 @@ Public Class VMNetAdapterInventory
 	End Sub
 
 	Public Async Sub Reset()
-		SyncLock CurrentAdapters
-			If CurrentAdapters Is Nothing Then
-				CurrentAdapters = New List(Of AdapterEntry)
-			Else
-				CurrentAdapters.Clear()
-			End If
-		End SyncLock
-
 		SyntheticAdapterSettingsCreateSubscriber.Cancel()
 		SyntheticAdapterSettingsChangeSubscriber.Cancel()
 		SyntheticAdapterSettingsDeleteSubscriber.Cancel()
 		EmulatedAdapterSettingsCreateSubscriber.Cancel()
 		EmulatedAdapterSettingsChangeSubscriber.Cancel()
 		EmulatedAdapterSettingsDeleteSubscriber.Cancel()
+
+		AdaptersLock = New Object
+		SyncLock AdaptersLock
+			If CurrentAdapters Is Nothing Then
+				CurrentAdapters = New List(Of AdapterEntry)
+			Else
+				CurrentAdapters.Clear()
+			End If
+		End SyncLock
 
 		For Each AdapterClassName As String In {CimClassNameSyntheticAdapterSettingData, CimClassNameEmulatedAdapterSettingData}
 			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(TargetSession, CimNamespaceVirtualization, AdapterClassName)

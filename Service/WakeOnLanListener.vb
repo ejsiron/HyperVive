@@ -2,6 +2,15 @@
 Imports System.Net.Sockets
 Imports System.Threading
 
+Public Module WOLEvents
+	Public Class MagicPacketReceivedEventArgs
+		Inherits EventArgs
+
+		Public Property MacAddress As String
+		Public Property SenderIP As IPAddress
+	End Class
+End Module
+
 Public Class WakeOnLanListener
 	Implements IDisposable
 
@@ -14,14 +23,16 @@ Public Class WakeOnLanListener
 
 	Private Canceller As CancellationTokenSource = Nothing
 
-	Public Event MagicPacketReceived(ByVal SenderIP As String, ByVal MacAddress As String)
-	Public Event OperationCanceled()
-	Public Event ReceiverException(ByVal ExceptionType As String)
-	Public Event DebugMessage(ByVal Message As String)
+	Public Event MagicPacketReceived(ByVal sender As Object, ByVal e As MagicPacketReceivedEventArgs)
+	Public Event OperationCanceled(ByVal sender As Object, ByVal e As EventArgs)
+	Public Event ReceiverException(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
+	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
-	Private Shared RecentMACs As List(Of String)
+	Private ListLock As Object
+	Private RecentMACs As List(Of String)
 
 	Public Async Sub Start(Optional ByVal DesiredPort As Integer = Ports.DefaultWOL)
+		ListLock = New Object
 		RecentMACs = New List(Of String)
 		Dim CancelToken As CancellationToken
 		Canceller = New CancellationTokenSource
@@ -35,13 +46,15 @@ Public Class WakeOnLanListener
 			Try
 				ReceivedData = Await Listener.ReceiveAsync().WithCancellation(CancelToken)
 			Catch opcancelex As OperationCanceledException
-				RaiseEvent OperationCanceled()
+				RaiseEvent OperationCanceled(Me, New EventArgs)
+				Return
 			Catch ex As Exception
-				RaiseEvent ReceiverException(TypeName(ex))
+				RaiseEvent ReceiverException(Me, New UnhandledExceptionEventArgs(ex, False))
+				Continue While
 			End Try
-			ExtractMACFromMagicPacket(ReceivedData.Buffer, ReceivedMac)
+			ReceivedMac = ExtractMACFromMagicPacket(ReceivedData.Buffer)
 			If Not String.IsNullOrEmpty(ReceivedMac) Then
-				ProcessReceivedMAC(ReceivedData.RemoteEndPoint.Address.ToString, ReceivedMac)
+				ProcessReceivedMAC(ReceivedMac, ReceivedData.RemoteEndPoint.Address)
 			End If
 		End While
 	End Sub
@@ -54,19 +67,19 @@ Public Class WakeOnLanListener
 		End If
 		RecentMACs.Clear()
 		RecentMACs = Nothing
+		ListLock = Nothing
 	End Sub
 
-	Private Sub ExtractMACFromMagicPacket(ByRef DataBuffer As Byte(), ByRef ReceivedMAC As String)
-		ReceivedMAC = String.Empty
+	Private Function ExtractMACFromMagicPacket(ByRef DataBuffer As Byte()) As String
 		' magic packet contents should be 102 bytes with an optional password
 		If DataBuffer Is Nothing OrElse DataBuffer.Length < 102 Then
-			Return
+			Return String.Empty
 		End If
 
 		' first six bytes must be 0xFF
 		For Each i As Byte In DataBuffer.Take(6)
 			If i <> &HFF Then
-				Return
+				Return String.Empty
 			End If
 		Next
 
@@ -75,29 +88,39 @@ Public Class WakeOnLanListener
 		For InitialMacPosition As Integer = 6 To 11 ' starting one past the initial 6 bytes, looking at next 6 bytes
 			For MirroredMacOffset As Integer = 1 To 15 ' verify that the same char appears 15 more times, in 6 byte jumps
 				If DataBuffer(InitialMacPosition) <> DataBuffer(InitialMacPosition + (6 * MirroredMacOffset)) Then
-					Return
+					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Magic packet received with an invalid format")})
+					Return String.Empty
 				End If
 			Next
 			TargetMac += DataBuffer(InitialMacPosition).ToString("X2")
 		Next
 
 		' can only reach this point if the MAC was repeated 16 times
-		ReceivedMAC = TargetMac
-	End Sub
+		Return TargetMac
+	End Function
 
-	Private Sub ProcessReceivedMAC(ByVal SenderIP As String, ByVal MAC As String)
-		If RecentMACs?.Contains(MAC) Then
-			Return
-		End If
-		RaiseEvent MagicPacketReceived(SenderIP, MAC)
+	Private Sub ProcessReceivedMAC(ByVal MAC As String, ByVal SenderIP As IPAddress)
+		SyncLock ListLock
+			If RecentMACs?.Contains(MAC) Then
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Received duplicate request for MAC {0}", MAC)})
+				Return
+			End If
+		End SyncLock
+
+		RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
 
 		' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
 		' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time
 		' Add the MAC to a watch list and remove it after a countdown
-		RecentMACs.Add(MAC)
 		Task.Run(Sub()
+						SyncLock ListLock
+							RecentMACs.Add(MAC)
+						End SyncLock
 						Thread.Sleep(MACWatchTimeoutSeconds * 1000)
-						RecentMACs?.Remove(MAC)
+						SyncLock ListLock
+							RecentMACs?.Remove(MAC)
+						End SyncLock
+						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("End exclusion period for MAC {0}", MAC)})
 					End Sub)
 	End Sub
 
