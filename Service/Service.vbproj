@@ -86,6 +86,7 @@
     <Compile Include="ProjectInstaller.vb">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="RegistryController.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="WakeOnLanListener.vb" />
     <Compile Include="CIMController.vb" />

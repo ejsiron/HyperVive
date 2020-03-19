@@ -118,17 +118,17 @@ Public Class VMNetAdapterInventory
 		Me.TargetSession = TargetSession
 		Try
 			SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceCreationClassName, 1, CimClassNameSyntheticAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceCreationClassName, 1, CimClassNameSyntheticAdapterSettingData)}
 			SyntheticAdapterSettingsChangeSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceModificationClassName, 1, CimClassNameSyntheticAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceModificationClassName, 1, CimClassNameSyntheticAdapterSettingData)}
 			SyntheticAdapterSettingsDeleteSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceDeletionClassName, 1, CimClassNameSyntheticAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceDeletionClassName, 1, CimClassNameSyntheticAdapterSettingData)}
 			EmulatedAdapterSettingsCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceCreationClassName, 1, CimClassNameEmulatedAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceCreationClassName, 1, CimClassNameEmulatedAdapterSettingData)}
 			EmulatedAdapterSettingsChangeSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceModificationClassName, 1, CimClassNameEmulatedAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceModificationClassName, 1, CimClassNameEmulatedAdapterSettingData)}
 			EmulatedAdapterSettingsDeleteSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimSelectEventTemplate, CimInstanceDeletionClassName, 1, CimClassNameEmulatedAdapterSettingData)}
+				.QueryText = String.Format(CimSelectEventTimedTemplate, CimInstanceDeletionClassName, 1, CimClassNameEmulatedAdapterSettingData)}
 			Reset()
 		Catch ex As Exception
 			ServiceLog.WriteEntry(String.Format("New failed with {0}", ex.Message), EventLogEntryType.Error)

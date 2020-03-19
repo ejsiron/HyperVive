@@ -105,17 +105,17 @@ Public Class WakeOnLanListener
 				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Received duplicate request for MAC {0}", MAC)})
 				Return
 			End If
+
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Received new request for MAC {0}", MAC)})
+
+			RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
+
+			' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
+			' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time
+			' Add the MAC to a watch list and remove it after a countdown
+			RecentMACs.Add(MAC)
 		End SyncLock
-
-		RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
-
-		' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
-		' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time
-		' Add the MAC to a watch list and remove it after a countdown
 		Task.Run(Sub()
-						SyncLock ListLock
-							RecentMACs.Add(MAC)
-						End SyncLock
 						Thread.Sleep(MACWatchTimeoutSeconds * 1000)
 						SyncLock ListLock
 							RecentMACs?.Remove(MAC)
