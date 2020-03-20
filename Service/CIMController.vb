@@ -101,7 +101,11 @@ Namespace CIMitar
 		''' <returns>The value of the property if present, otherwise an empty string.</returns>
 		<Runtime.CompilerServices.Extension>
 		Public Function GetInstancePropertyValueString(ByVal Instance As CimInstance, ByVal PropertyName As String) As String
-			Return GetValueString(Instance.CimInstanceProperties(PropertyName))
+			If Instance Is Nothing Then
+				Return String.Empty
+			Else
+				Return GetValueString(Instance.CimInstanceProperties(PropertyName))
+			End If
 		End Function
 	End Module
 
@@ -184,6 +188,12 @@ Namespace CIMitar
 			End Set
 			Get
 				Return _LastError
+			End Get
+		End Property
+
+		Public ReadOnly Property IsRunning As Boolean
+			Get
+				Return Subscriber IsNot Nothing
 			End Get
 		End Property
 

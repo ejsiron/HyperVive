@@ -4,7 +4,7 @@
 	Public Const CimInstanceCreationClassName As String = "CIM_InstCreation"
 	Public Const CimInstanceModificationClassName As String = "CIM_InstModification"
 	Public Const CimInstanceDeletionClassName As String = "CIM_InstDeletion"
-	Public Const CimSelectRegistyChangeEventTemplate As String = "SELECT * FROM RegistryKeyChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}'"
+	Public Const CimSelectRegistryValueChangeTemplate As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
 	Public Const CimSelectEventTimedTemplate As String = "SELECT * FROM {0} WITHIN {1} WHERE SourceInstance ISA '{2}'"
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"

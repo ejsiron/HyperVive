@@ -3,48 +3,85 @@ Imports Microsoft.Management.Infrastructure
 Imports Microsoft.Win32
 
 Public Module RegistryEvents
-	Public Class RegistryDwordKVPChangedEventArgs
+	Public Class RegistryValueChangedEventArgs
+		Public Property Hive As String
+		Public Property KeyPath As String
+		Public Property ValueName As String
+		Public Property Value As Object
+	End Class
+
+	Public Class RegistryAccessErrorEventArgs
 		Inherits EventArgs
 
-		Public Property KeyName As String
-		Public Property Value As UInt32
+		Public Property [Error] As Exception
 	End Class
 End Module
 
 Partial Public Class RegistryController
 	Implements IDisposable
 
+	Public Event RegistryValueChanged(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs)
+	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As RegistryAccessErrorEventArgs)
+
+	Public Property RootRegistry As RegistryKey
+	Public Property KeyPath As String
+	Public Property ValueName As String
+	Public ReadOnly Property ValueKind As RegistryValueKind = RegistryValueKind.String
+
+	Private _Value As Object = 0
+	Public ReadOnly Property Value As Object
+		Get
+			If Not ValueWatcher.IsRunning Then
+				UpdateKeyValue()
+			End If
+			Return _Value
+		End Get
+	End Property
+
 	Private Session As CimSession
 
-	'Private ReadOnly Property KVPRootKey As RegistryKey
-	'	Get
-	'		If Environment.Is64BitOperatingSystem Then
-	'			Return RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
-	'		Else
-	'			Return RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry32)
-	'		End If
-	'	End Get
-	'End Property
+	Private WithEvents ValueWatcher As CimSubscriptionController
 
-	Private WithEvents DebugModeKeyWatcher As CimSubscriptionController
+	Private Sub ProcessUpdatedValue(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles ValueWatcher.EventReceived
+		e.SubscribedEvent.Dispose()
+		UpdateKeyValue()
+		RaiseEvent RegistryValueChanged(Me, New RegistryValueChangedEventArgs With {.Hive = RootRegistry.Name, .KeyPath = KeyPath, .ValueName = ValueName, .Value = Value})
+	End Sub
+
+	Private Sub WatcherErrorReceived(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles ValueWatcher.ErrorOccurred
+		e.ErrorInstance.Dispose()
+	End Sub
 
 	Public Sub New(ByRef Session As CimSession)
 		Me.Session = Session
 	End Sub
 
 	Public Sub Start()
-		DebugModeKeyWatcher = New CimSubscriptionController(Session) With {
-			.QueryText = String.Format(CimSelectRegistyChangeEventTemplate, "HKEY_LOCAL_MACHINE", EscapeRegistryItem(RegistryKeyName))
+		UpdateKeyValue()
+		ValueWatcher = New CimSubscriptionController(Session) With {
+			.[Namespace] = "root/DEFAULT",
+			.QueryText = String.Format(CimSelectRegistryValueChangeTemplate, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
 		}
 	End Sub
 
 	Public Sub [Stop]()
-		DebugModeKeyWatcher?.Cancel()
+		ValueWatcher?.Cancel()
 	End Sub
 
-	Private Function GetKeyValue(ByVal ContainerKeyName As String, ByVal KVPKeyName As String) As Object
-		Return Registry.LocalMachine.GetValue(ContainerKeyName + "\" + KVPKeyName, Nothing)
-	End Function
+	Private Sub UpdateKeyValue()
+		Dim TargetKey As RegistryKey = RootRegistry.OpenSubKey(KeyPath)
+		If TargetKey IsNot Nothing Then
+			Try
+				_Value = TargetKey.GetValue(ValueName)
+				_ValueKind = TargetKey.GetValueKind(ValueName)
+			Catch ex As Exception
+				RaiseEvent RegistryAccessError(Me, New RegistryAccessErrorEventArgs With {.[Error] = ex})
+			Finally
+				TargetKey?.Close()
+				TargetKey?.Dispose()
+			End Try
+		End If
+	End Sub
 
 	''' <summary>
 	''' Registry paths in WMI need to have every backslash escaped. This regex replaces any instance of slashes, regardless of count, with two slashes
@@ -64,7 +101,7 @@ Partial Public Class RegistryController
 	Protected Overridable Sub Dispose(disposing As Boolean)
 		If Not disposedValue Then
 			If disposing Then
-				DebugModeKeyWatcher?.Dispose()
+				ValueWatcher?.Dispose()
 			End If
 		End If
 		disposedValue = True
