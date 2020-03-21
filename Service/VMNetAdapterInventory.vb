@@ -59,8 +59,6 @@ Public Class VMNetAdapterInventory
 		If Not String.IsNullOrEmpty(NewAdapter.MAC) Then
 			AddAdapter(NewAdapter)
 			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Registered new virtual adapter with MAC {0}", NewAdapter.MAC)})
-		Else
-
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub

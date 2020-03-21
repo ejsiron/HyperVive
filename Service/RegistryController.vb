@@ -10,18 +10,13 @@ Public Module RegistryEvents
 		Public Property Value As Object
 	End Class
 
-	Public Class RegistryAccessErrorEventArgs
-		Inherits EventArgs
-
-		Public Property [Error] As Exception
-	End Class
 End Module
 
 Partial Public Class RegistryController
 	Implements IDisposable
 
 	Public Event RegistryValueChanged(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs)
-	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As RegistryAccessErrorEventArgs)
+	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 
 	Public Property RootRegistry As RegistryKey
 	Public Property KeyPath As String
@@ -39,7 +34,7 @@ Partial Public Class RegistryController
 	End Property
 
 	Private Session As CimSession
-
+	Private Const ModuleName As String = "Registry"
 	Private WithEvents ValueWatcher As CimSubscriptionController
 
 	Private Sub ProcessUpdatedValue(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles ValueWatcher.EventReceived
@@ -75,7 +70,7 @@ Partial Public Class RegistryController
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
 			Catch ex As Exception
-				RaiseEvent RegistryAccessError(Me, New RegistryAccessErrorEventArgs With {.[Error] = ex})
+				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex})
 			Finally
 				TargetKey?.Close()
 				TargetKey?.Dispose()

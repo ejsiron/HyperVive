@@ -19,13 +19,14 @@ Public Class WakeOnLanListener
 		LegacyWOL = 7
 	End Enum
 
+	Private Const ModuleName As String = "Wake-On-LAN Listener"
 	Private Const MACWatchTimeoutSeconds As Integer = 5
 
 	Private Canceller As CancellationTokenSource = Nothing
 
 	Public Event MagicPacketReceived(ByVal sender As Object, ByVal e As MagicPacketReceivedEventArgs)
 	Public Event OperationCanceled(ByVal sender As Object, ByVal e As EventArgs)
-	Public Event ReceiverException(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
+	Public Event ReceiverError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
 	Private ListLock As Object
@@ -49,7 +50,7 @@ Public Class WakeOnLanListener
 				RaiseEvent OperationCanceled(Me, New EventArgs)
 				Return
 			Catch ex As Exception
-				RaiseEvent ReceiverException(Me, New UnhandledExceptionEventArgs(ex, False))
+				RaiseEvent ReceiverError(Me, New ModuleExceptionEventArgs With {.[Error] = ex, .ModuleName = ModuleName})
 				Continue While
 			End Try
 			ReceivedMac = ExtractMACFromMagicPacket(ReceivedData.Buffer)
