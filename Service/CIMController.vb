@@ -178,6 +178,8 @@ Namespace CIMitar
 			End Set
 		End Property
 
+		Public Property KeysOnly As Boolean = False
+
 		''' <summary>
 		''' The most recent CIM error encountered by this activity. Null if no error has occurred.
 		''' </summary>
@@ -246,6 +248,7 @@ Namespace CIMitar
 			CimCancellationSource = New CancellationTokenSource
 			CimCancellationSource.Token.Register(Sub() CancellationCallback())
 			AsyncOptions.CancellationToken = CimCancellationSource.Token
+			AsyncOptions.KeysOnly = KeysOnly
 			Dim Observable As IObservable(Of SubscriberType) = InvokeOperation()
 			Dim Observer As New CimObserver(Of SubscriberType)(AddressOf ReportError, AddressOf ReportResult, AddressOf ReportCompletion)
 			Subscriber = Observable.Subscribe(Observer)
@@ -261,6 +264,9 @@ Namespace CIMitar
 			Subscriber = Nothing
 			_LastError?.Dispose()
 			_LastError = Nothing
+			If CompleteClean Then
+				AsyncOptions.Dispose()
+			End If
 		End Sub
 
 		Private _Namespace As String

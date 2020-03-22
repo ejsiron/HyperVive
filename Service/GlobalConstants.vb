@@ -10,7 +10,28 @@
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"
 	Public Const CimPropertyNameInstanceID As String = "InstanceID"
 	Public Const CimPropertyNameAddress As String = "Address"
+	Public Const CimPropertyNameEnabledState As String = "EnabledState"
+	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
+	Public Const CimParameterNameRequestedState As String = "RequestedState"
+	Public Const CimParameterNameTimeoutPeriod As String = "TimeoutPeriod"
+	Public Const CimMethodName As String = "RequestStateChange"
 #End Region 'Cim Globals
+
+#Region "Virtual Machine Globals"
+	Public Enum VirtualMachineStates As UInt16
+		Unknown = 0
+		Other = 1
+		Running = 2
+		Off = 3
+		Stopping = 4
+		EnabledOffline = 5
+		Saved = 6
+		InTest = 7
+		Deferred = 8
+		Quiesced = 9
+		Starting = 10
+	End Enum
+#End Region
 
 #Region "Registry Globals"
 	Public Const RegistryKeyName As String = "SYSTEM\CurrentControlSet\Services\HyperVive\"
