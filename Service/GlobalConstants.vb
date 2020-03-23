@@ -17,7 +17,7 @@
 	Public Const CimMethodName As String = "RequestStateChange"
 #End Region 'Cim Globals
 
-#Region "Virtual Machine Globals"
+#Region "Virtualization Globals"
 	Public Enum VirtualMachineStates As UInt16
 		Unknown = 0
 		Other = 1
@@ -30,6 +30,13 @@
 		Deferred = 8
 		Quiesced = 9
 		Starting = 10
+	End Enum
+
+	Public Enum VirtualizationMethodErrors As UInt16
+		NoError = 0
+		JobStarted = 4096
+		AccessDenied = 32769
+		InvalidState = 32775
 	End Enum
 #End Region
 

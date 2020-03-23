@@ -91,7 +91,6 @@
     <Compile Include="VMStarter.vb" />
     <Compile Include="WakeOnLanListener.vb" />
     <Compile Include="CIMController.vb" />
-    <Compile Include="VMController.vb" />
     <Compile Include="HyperViveService.vb">
       <SubType>Component</SubType>
     </Compile>
