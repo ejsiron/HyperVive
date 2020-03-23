@@ -70,13 +70,11 @@ Public Class HyperViveService
 	End Sub
 
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
-		EventLog.WriteEntry(String.Format("Received WOL frame from {0} for {1}", e.SenderIP.ToString, e.MacAddress))
+		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Received WOL frame from {0} for {1}", e.SenderIP.ToString, e.MacAddress)})
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
 
 		For Each ID As String In VmIDs
-			Using VMLister As New CimAsyncQueryInstancesController(LocalCimSession, CimNamespaceVirtualization)
-				VMLister.QueryText = ""
-			End Using
+
 		Next
 	End Sub
 

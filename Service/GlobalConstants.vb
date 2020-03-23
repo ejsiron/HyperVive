@@ -1,20 +1,26 @@
 ﻿Module GlobalConstants
 #Region "Cim Globals"
 	Public Const CimNamespaceVirtualization As String = "root/virtualization/v2"
-	Public Const CimInstanceCreationClassName As String = "CIM_InstCreation"
-	Public Const CimInstanceModificationClassName As String = "CIM_InstModification"
-	Public Const CimInstanceDeletionClassName As String = "CIM_InstDeletion"
-	Public Const CimSelectRegistryValueChangeTemplate As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
-	Public Const CimSelectEventTimedTemplate As String = "SELECT * FROM {0} WITHIN {1} WHERE SourceInstance ISA '{2}'"
+
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"
+	Public Const CimClassNameInstanceCreation As String = "CIM_InstCreation"
+	Public Const CimClassNameInstanceModification As String = "CIM_InstModification"
+	Public Const CimClassNameInstanceDeletion As String = "CIM_InstDeletion"
+
+	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
+
+	Public Const CimParameterNameRequestedState As String = "RequestedState"
+	Public Const CimParameterNameTimeoutPeriod As String = "TimeoutPeriod"
+	Public Const CimParameterNameJob As String = "Job"
+
 	Public Const CimPropertyNameInstanceID As String = "InstanceID"
 	Public Const CimPropertyNameAddress As String = "Address"
 	Public Const CimPropertyNameEnabledState As String = "EnabledState"
-	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
-	Public Const CimParameterNameRequestedState As String = "RequestedState"
-	Public Const CimParameterNameTimeoutPeriod As String = "TimeoutPeriod"
-	Public Const CimMethodName As String = "RequestStateChange"
+
+	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
+	Public Const CimQueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE SourceInstance ISA '{2}'"
+
 #End Region 'Cim Globals
 
 #Region "Virtualization Globals"

@@ -55,7 +55,7 @@ Partial Public Class RegistryController
 		UpdateKeyValue()
 		ValueWatcher = New CimSubscriptionController(Session) With {
 			.[Namespace] = "root/DEFAULT",
-			.QueryText = String.Format(CimSelectRegistryValueChangeTemplate, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
+			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
 		}
 	End Sub
 

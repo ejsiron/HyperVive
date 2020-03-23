@@ -30,41 +30,6 @@ Namespace CIMitar
 		End Function
 
 		''' <summary>
-		''' Disposes all items in a <see cref="List(Of CimInstance)"/> before removing them.
-		''' </summary>
-		''' <param name="InstanceList">A <see cref="List(Of CimInstance)"/> to clear.</param>
-		<Runtime.CompilerServices.Extension>
-		Public Sub ClearWithDispose(ByRef InstanceList As List(Of CimInstance))
-			For Each Instance As CimInstance In InstanceList
-				Instance?.Dispose()
-			Next
-		End Sub
-
-		''' <summary>
-		''' Adds "Dispose" to a <see cref="List(Of CimInstance)"/>. Disposes all items, then destroys the list.
-		''' </summary>
-		''' <param name="InstanceList">A <see cref="List(Of CimInstance)"/> to destroy.</param>
-		<Runtime.CompilerServices.Extension>
-		Public Sub Dispose(ByRef InstanceList As List(Of CimInstance))
-			ClearWithDispose(InstanceList)
-			InstanceList = Nothing
-		End Sub
-
-		''' <summary>
-		''' Clones a list of <see cref="Microsoft.Management.Infrastructure.CimInstance">CimInstance</see>
-		''' </summary>
-		''' <param name="Instances">A <see cref="List(Of CimInstance)"/> to clone</param>
-		''' <returns><see cref="List(Of CimInstance)"/></returns>
-		<Runtime.CompilerServices.Extension>
-		Public Function Clone(ByVal Instances As List(Of CimInstance)) As List(Of CimInstance)
-			Dim NewList As New List(Of CimInstance)(Instances.Count)
-			For Each Instance As CimInstance In Instances
-				NewList.Add(Instance.Clone)
-			Next
-			Return NewList
-		End Function
-
-		''' <summary>
 		''' Given a <see cref="CimClass"/> and a method name, determines if the method is static to that CIM class or must run on an instance.
 		''' </summary>
 		''' <param name="[Class]">The <see cref="CimClass"/> to check.</param>
@@ -149,6 +114,48 @@ Namespace CIMitar
 
 		Public Delegate Sub CimActionCompletedHandler(ByVal sender As Object, ByVal e As CimActionCompletedArgs)
 	End Module
+
+	Public Class CimInstanceList
+		Inherits List(Of CimInstance)
+		Implements IDisposable
+
+		''' <summary>
+		''' Disposes all instances, then clears as normal
+		''' </summary>
+		Public Overloads Sub Clear()
+			For Each Instance As CimInstance In Me
+				Instance?.Dispose()
+			Next
+			MyBase.Clear()
+		End Sub
+
+		Public Function Clone() As CimInstanceList
+			Dim ClonedList As New CimInstanceList
+			For Each Instance As CimInstance In Me
+				If Instance IsNot Nothing Then
+					ClonedList.Add(Instance.Clone)
+				End If
+			Next
+			Return ClonedList
+		End Function
+
+#Region "CimInstanceList IDisposable Support"
+		Private disposedValue As Boolean
+
+		Protected Overridable Sub Dispose(disposing As Boolean)
+			If Not disposedValue Then
+				If disposing Then
+					Clear()
+				End If
+			End If
+			disposedValue = True
+		End Sub
+
+		Public Sub Dispose() Implements IDisposable.Dispose
+			Dispose(True)
+		End Sub
+#End Region
+	End Class
 
 	''' <summary>
 	''' Base class for all CIM activities.
@@ -358,9 +365,9 @@ Namespace CIMitar
 	End Class
 
 	Public MustInherit Class CimAsyncInstanceController
-		Inherits CimAsyncController(Of CimInstance, List(Of CimInstance))
+		Inherits CimAsyncController(Of CimInstance, CimInstanceList)
 
-		Private Instances As New List(Of CimInstance)
+		Private Instances As New CimInstanceList
 
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
@@ -375,7 +382,7 @@ Namespace CIMitar
 		End Sub
 
 		Protected Overrides Sub Reset(Optional CompleteClean As Boolean = False)
-			Instances?.ClearWithDispose
+			Instances?.Clear()
 			MyBase.Reset(CompleteClean)
 		End Sub
 	End Class
@@ -390,7 +397,7 @@ Namespace CIMitar
 			Me.ClassName = ClassName
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
+		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
 			StartSubscriber()
 			Return CimCompletionTaskSource.Task
 		End Function
@@ -410,7 +417,7 @@ Namespace CIMitar
 			Me.QueryText = QueryText
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of List(Of CimInstance))
+		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
 			StartSubscriber()
 			Return CimCompletionTaskSource.Task
 		End Function
