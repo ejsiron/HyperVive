@@ -77,10 +77,10 @@ Public Class VMNetAdapterInventory
 										  End Sub)
 			End SyncLock
 			If AdapterFound Then
-				ServiceLog.WriteEntry(String.Format("Updated an adapter with MAC {0}", ChangedAdapter.MAC))
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Updated an adapter with MAC {0}", ChangedAdapter.MAC)})
 			Else
 				AddAdapter(ChangedAdapter)
-				ServiceLog.WriteEntry(String.Format("Added an adapter with MAC {0} from an update request", ChangedAdapter.MAC))
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Added an adapter with MAC {0} from an update request", ChangedAdapter.MAC)})
 			End If
 		End If
 		e.SubscribedEvent.Dispose()
@@ -93,7 +93,7 @@ Public Class VMNetAdapterInventory
 			SyncLock AdaptersLock
 				RemovedAdapterCount = CurrentAdapters.RemoveAll(Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.InstanceID = ChangedAdapter.InstanceID)
 			End SyncLock
-			ServiceLog.WriteEntry(String.Format("Deleted {0} adapter(s)", RemovedAdapterCount))
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Deleted {0} adapter(s)", RemovedAdapterCount)})
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
@@ -152,17 +152,14 @@ Public Class VMNetAdapterInventory
 
 		For Each AdapterClassName As String In {CimClassNameSyntheticAdapterSettingData, CimClassNameEmulatedAdapterSettingData}
 			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(TargetSession, CimNamespaceVirtualization, AdapterClassName)
-				Try
-					Dim FoundAdapters As List(Of CimInstance) = Await AdapterEnumerator.StartAsync
+				Using FoundAdapters As CimInstanceList = Await AdapterEnumerator.StartAsync
 					For Each AdapterInstance As CimInstance In FoundAdapters
 						AddAdapter(GetAdapterEntryFromInstance(AdapterInstance))
 					Next
-				Catch ex As Exception
-					ServiceLog.WriteEntry(String.Format("DEBUG: AdapterEnumerator threw: {0}", ex.Message), EventLogEntryType.Error)
-				End Try
+				End Using
 			End Using
 		Next
-		ServiceLog.WriteEntry(String.Format("Enumerated {0} network adapters", CurrentAdapters.Count))
+		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Enumerated {0} network adapters", CurrentAdapters.Count)})
 
 		SyntheticAdapterSettingsCreateSubscriber.Start()
 		SyntheticAdapterSettingsChangeSubscriber.Start()

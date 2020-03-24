@@ -17,6 +17,7 @@ Partial Public Class RegistryController
 
 	Public Event RegistryValueChanged(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs)
 	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
+	Public Event RegistryDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
 	Public Property RootRegistry As RegistryKey
 	Public Property KeyPath As String
@@ -26,7 +27,7 @@ Partial Public Class RegistryController
 	Private _Value As Object = 0
 	Public ReadOnly Property Value As Object
 		Get
-			If Not ValueWatcher.IsRunning Then
+			If ValueWatcher Is Nothing OrElse Not ValueWatcher.IsRunning Then
 				UpdateKeyValue()
 			End If
 			Return _Value
@@ -57,6 +58,7 @@ Partial Public Class RegistryController
 			.[Namespace] = "root/DEFAULT",
 			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
 		}
+		ValueWatcher.Start()
 	End Sub
 
 	Public Sub [Stop]()
@@ -75,6 +77,8 @@ Partial Public Class RegistryController
 				TargetKey?.Close()
 				TargetKey?.Dispose()
 			End Try
+		Else
+			RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format("Could not open registry at {0}", KeyPath))})
 		End If
 	End Sub
 

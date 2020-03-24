@@ -88,7 +88,7 @@
     </Compile>
     <Compile Include="RegistryController.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
-    <Compile Include="VMStarter.vb" />
+    <Compile Include="VMStartController.vb" />
     <Compile Include="WakeOnLanListener.vb" />
     <Compile Include="CIMController.vb" />
     <Compile Include="HyperViveService.vb">

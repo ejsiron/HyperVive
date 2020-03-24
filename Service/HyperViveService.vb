@@ -21,6 +21,13 @@ Public Class HyperViveService
 	Private WithEvents DebugModeSettingReader As RegistryController
 	Private WithEvents AdapterInventory As VMNetAdapterInventory
 	Private WithEvents WOLListener As WakeOnLanListener
+	Private WithEvents VMStarter As VMStartController
+
+	Private ReadOnly Property ServiceRegistryPath As String
+		Get
+			Return String.Format("SYSTEM\CurrentControlSet\Services\{0}", ServiceName)
+		End Get
+	End Property
 
 	Private DebugMode As Boolean = False
 
@@ -28,10 +35,11 @@ Public Class HyperViveService
 		AddHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 		If New WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator) Then
 			LocalCimSession = CimSession.Create(Nothing)
-			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = "SYSTEM\CurrentControlSet\Services\{0}", .ValueName = "DebugMode"}
+			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = ServiceRegistryPath, .ValueName = "DebugMode"}
 			UpdateDebugMode(Nothing, Nothing)
 			DebugModeSettingReader.Start()
 			AdapterInventory = New VMNetAdapterInventory(LocalCimSession, EventLog)
+			VMStarter = New VMStartController(LocalCimSession)
 			WOLListener = New WakeOnLanListener
 			WOLListener.Start()
 		Else
@@ -42,9 +50,9 @@ Public Class HyperViveService
 
 	Protected Overrides Sub OnStop()
 		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
-		DebugModeSettingReader.Stop()
-
 		WOLListener?.Dispose()
+		DebugModeSettingReader.Stop()
+		VMStarter = Nothing
 		LocalCimSession?.Dispose()
 	End Sub
 
@@ -54,11 +62,12 @@ Public Class HyperViveService
 		Catch ex As Exception
 			DebugMode = False
 		End Try
+		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Debug mode set to {0}", DebugMode)})
 	End Sub
 
 	Private Sub AppErrorReceived(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
 		Dim UnknownError As Exception = CType(e.ExceptionObject, Exception)
-		EventLog.WriteEntry(String.Format("Halting due to unexpected error ""{0}"" of type {1}", UnknownError.Message, UnknownError.GetType.Name), EventLogEntryType.Error)
+		EventLog.WriteEntry(String.Format("Halting due to unexpected error ""{0}"" of type {1}", UnknownError.Message, UnknownError.GetType.FullName), EventLogEntryType.Error)
 		Kill(CType(IIf(UnknownError.HResult = 0, -1, UnknownError.HResult), Integer))
 		If TypeOf UnknownError Is IDisposable Then   ' CIM exceptions are disposable
 			CType(UnknownError, IDisposable).Dispose()
@@ -72,13 +81,10 @@ Public Class HyperViveService
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
 		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Received WOL frame from {0} for {1}", e.SenderIP.ToString, e.MacAddress)})
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
-
-		For Each ID As String In VmIDs
-
-		Next
+		VMStarter.Start(e.MacAddress, VmIDs)
 	End Sub
 
-	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated
+	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.VMStartDebugMessage, DebugModeSettingReader.RegistryDebugMessage
 		If DebugMode Then
 			EventLog.WriteEntry(String.Format("Debug: {0}", e.Message))
 		End If

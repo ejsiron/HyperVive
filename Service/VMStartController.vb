@@ -20,13 +20,13 @@ Public Module VMEvents
 	End Class
 End Module
 
-Public Class VMStarter
+Public Class VMStartController
 	Private Session As CimSession
 
 	Public Event VMStarted(ByVal sender As Object, ByVal e As VMStartedEventArgs)
 	Public Event VMStartFailure(ByVal sender As Object, ByVal e As VMStartFailureEventArgs)
 	Public Event VMStartDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
-
+	Public Event VMStartError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 
 	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
@@ -34,7 +34,7 @@ Public Class VMStarter
 
 	Public Async Sub Start(ByVal MacAddress As String, ByVal VmIDs As List(Of String))
 		Using VMLister As New CimAsyncQueryInstancesController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format("SELECT * FROM Msvm_ComputerSystem {0}", ConvertVMListToQueryFilter(VmIDs)),
+			.QueryText = String.Format(CimQueryTemplateVirtualMachine, ConvertVMListToQueryFilter(VmIDs)),
 			.KeysOnly = True
 		}
 			Using TargetVMs As CimInstanceList = Await VMLister.StartAsync
@@ -42,23 +42,23 @@ Public Class VMStarter
 					Async Sub(ByVal VM As CimInstance)
 						Dim CurrentState As VirtualMachineStates = CType(VM.CimInstanceProperties(CimPropertyNameEnabledState).Value, VirtualMachineStates)
 						Dim Info As New VMInfo With {
-							.ID = VM.GetInstancePropertyValueString("Name"),
-							.Name = VM.GetInstancePropertyValueString("Name"),
+							.ID = VM.GetInstancePropertyValueString(CimPropertyNameName),
+							.Name = VM.GetInstancePropertyValueString(CimPropertyNameElementName),
 							.MacAddress = MacAddress
 						}
-						Dim ResultCode As UInt16 = VirtualizationMethodErrors.InvalidState
+						Dim ResultCode As UShort = VirtualizationMethodErrors.InvalidState
 						Dim JobID As String = String.Empty
 						If IsVmStartable(CurrentState) Then
-							Using VMStartController As New CimAsyncInvokeInstanceMethodController(Session, CimNamespaceVirtualization)
+							Using VMStartController As New CimAsyncInvokeInstanceMethodController(Session, CimNamespaceVirtualization) With {.Instance = VM}
 								VMStartController.MethodName = CimMethodNameRequestStateChange
-								VMStartController.InputParameters.Add(CimMethodParameter.Create(CimParameterNameRequestedState, VirtualMachineStates.Running, 0))
+								VMStartController.InputParameters.Add(CimMethodParameter.Create(CimParameterNameRequestedState, VirtualMachineStates.Running, CimType.UInt16, 0))
 								Using StartResult As CimMethodResult = Await VMStartController.StartAsync
 									ResultCode = CUShort(StartResult.ReturnValue.Value)
 									If ResultCode = VirtualizationMethodErrors.JobStarted Then
-										Dim JobReference As CimInstance = CType(StartResult.OutParameters("Job").Value, CimInstance)
+										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
 										JobID = JobReference.GetInstancePropertyValueString(CimPropertyNameInstanceID)
-										RaiseEvent VMStartDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Created start job with instance ID {0} for VM {1} with GUID {0}", JobID, Info.Name, Info.ID)})
-										WatchVMStartJob(JobID, Info).Start()
+										RaiseEvent VMStartDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(JobCreatedMessageTemplate, JobID, Info.Name, Info.ID)})
+										Await WatchVMStartJob(JobID, Info)
 									Else
 										ProcessVMStartResult(ResultCode, Info)
 									End If
@@ -70,7 +70,10 @@ Public Class VMStarter
 		End Using
 	End Sub
 
-	Private ReadOnly Property ModuleName As String = "VM Starter"
+	Private Const ModuleName As String = "VM Starter"
+	Private Const DefaultFailureReason As String = "Code not recognized"
+	Private Const JobNotFoundErrorTemplate As String = "Received a WOL packet for MAC {0} which mapped to VM {1} with ID {2}. An attempt was made to start it on a job with instance ID {3}, but the job was not found"
+	Private Const JobCreatedMessageTemplate As String = "Created start job with instance ID {0} for VM {1} with GUID {0}"
 
 	Private Shared Function ConvertVMListToQueryFilter(ByVal VmIDs As List(Of String)) As String
 		Dim ListEntries As New List(Of String)(VmIDs.Count)
@@ -84,7 +87,7 @@ Public Class VMStarter
 		Return CurrentState = VirtualMachineStates.Off OrElse CurrentState = VirtualMachineStates.Saved
 	End Function
 
-	Private Sub ProcessVMStartResult(ByVal ResultCode As UInt16, ByVal Info As VMInfo)
+	Private Sub ProcessVMStartResult(ByVal ResultCode As UShort, ByVal Info As VMInfo)
 		If ResultCode = VirtualizationMethodErrors.NoError Then
 			RaiseEvent VMStarted(Me, New VMStartedEventArgs With {.VirtualMachineInfo = Info})
 		Else  ' take care not to call with a 4096
@@ -92,13 +95,32 @@ Public Class VMStarter
 			If [Enum].IsDefined(GetType(VirtualizationMethodErrors), ResultCode) Then
 				FailureReason = CType(ResultCode, VirtualizationMethodErrors).ToString
 			Else
-				FailureReason = "Code not recognized"
+				FailureReason = DefaultFailureReason
 			End If
-			RaiseEvent VMStartFailure(Me, New VMStartFailureEventArgs With {.VirtualMachineInfo = Info, .ErrorCode = ResultCode, .Reason = ResultCode.ToString})
+			RaiseEvent VMStartFailure(Me, New VMStartFailureEventArgs With {.VirtualMachineInfo = Info, .ErrorCode = ResultCode, .Reason = FailureReason})
 		End If
 	End Sub
 
-	Private Function WatchVMStartJob(ByVal JobInstanceID As String, ByVal Info As VMInfo) As Task
-
+	Private Async Function WatchVMStartJob(ByVal JobInstanceID As String, ByVal Info As VMInfo) As Task
+		Dim Job As CimInstance
+		Dim JobList As CimInstanceList
+		Dim JobState As JobStates = JobStates.New
+		Using JobChecker As New CimAsyncQueryInstancesController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateMsvmConcreteJob, JobInstanceID)
+			}
+			JobList = Await JobChecker.StartAsync
+		End Using
+		If JobList.Count > 0 Then
+			Job = JobList.First
+			While JobState = JobStates.Running OrElse JobState = JobStates.New OrElse JobState = JobStates.Starting
+				Job.Refresh(Session)
+				JobState = CType(Job.CimInstanceProperties(CimPropertyNameJobState).Value, JobStates)
+			End While
+		Else
+			RaiseEvent VMStartError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] =
+				New Exception(String.Format(JobNotFoundErrorTemplate, Info.MacAddress, Info.Name, Info.ID, JobInstanceID))})
+			Return
+		End If
+		ProcessVMStartResult(CUShort(Job.CimInstanceProperties(CimPropertyNameErrorCode).Value), Info)
 	End Function
 End Class

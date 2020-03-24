@@ -7,6 +7,7 @@
 	Public Const CimClassNameInstanceCreation As String = "CIM_InstCreation"
 	Public Const CimClassNameInstanceModification As String = "CIM_InstModification"
 	Public Const CimClassNameInstanceDeletion As String = "CIM_InstDeletion"
+	Public Const CimClassNameVirtualizationJob As String = "Msvm_ConcreteJob"
 
 	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
 
@@ -17,14 +18,31 @@
 	Public Const CimPropertyNameInstanceID As String = "InstanceID"
 	Public Const CimPropertyNameAddress As String = "Address"
 	Public Const CimPropertyNameEnabledState As String = "EnabledState"
+	Public Const CimPropertyNameJobState As String = "JobState"
+	Public Const CimPropertyNameErrorCode As String = "ErrorCode"
+	Public Const CimPropertyNameName As String = "Name"
+	Public Const CimPropertyNameElementName As String = "ElementName"
 
 	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
 	Public Const CimQueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE SourceInstance ISA '{2}'"
+	Public Const CimQueryTemplateMsvmConcreteJob As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
+	Public Const CimQueryTemplateVirtualMachine As String = "SELECT * FROM Msvm_ComputerSystem {0}"
 
+	Public Enum JobStates As UShort
+		[New] = 2
+		Starting = 3
+		Running = 4
+		ShuttingDown = 6
+		Completed = 7
+		Terminated = 8
+		Killed = 9
+		Exception = 10
+		Service = 11
+	End Enum
 #End Region 'Cim Globals
 
 #Region "Virtualization Globals"
-	Public Enum VirtualMachineStates As UInt16
+	Public Enum VirtualMachineStates As UShort
 		Unknown = 0
 		Other = 1
 		Running = 2
@@ -38,7 +56,7 @@
 		Starting = 10
 	End Enum
 
-	Public Enum VirtualizationMethodErrors As UInt16
+	Public Enum VirtualizationMethodErrors As UShort
 		NoError = 0
 		JobStarted = 4096
 		AccessDenied = 32769

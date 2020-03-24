@@ -47,6 +47,13 @@ Namespace CIMitar
 			Return False
 		End Function
 
+		<Runtime.CompilerServices.Extension>
+		Public Sub Refresh(ByRef Instance As CimInstance, ByVal OwningSession As CimSession)
+			Dim ReplacementInstance As CimInstance = OwningSession.GetInstance(Instance.CimSystemProperties.Namespace, Instance)
+			Instance.Dispose()
+			Instance = ReplacementInstance
+		End Sub
+
 		''' <summary>
 		''' Extracts the string value from a CIM instance or system property
 		''' </summary>
@@ -172,7 +179,7 @@ Namespace CIMitar
 		''' </summary>
 		''' <remarks>The CIM error handlers work well with invalid namespaces, but not with null or empty namespaces. Always ensure that the field contains something.</remarks>
 		''' <returns>The current CIM namespace of the activity.</returns>
-		Public Property [Namespace] As String
+		Public Overridable Property [Namespace] As String
 			Get
 				Return _Namespace
 			End Get
@@ -364,13 +371,66 @@ Namespace CIMitar
 		End Sub
 	End Class
 
-	Public MustInherit Class CimAsyncInstanceController
+	Public Class CimAsyncRefreshInstanceController
+		Inherits CimAsyncController(Of CimInstance, CimInstance)
+
+		Public Property Instance As CimInstance
+
+		Public Overrides Property [Namespace] As String
+			Get
+				If Instance Is Nothing Then
+					Return DefaultNamespace
+				Else
+					Return Instance.CimSystemProperties.Namespace
+				End If
+			End Get
+			Set(value As String)
+				'
+			End Set
+		End Property
+
+		Sub New(ByVal Session As CimSession, Optional ByVal Instance As CimInstance = Nothing)
+			MyBase.New(Session)
+			Me.Instance = Instance
+		End Sub
+
+		Protected Overrides Sub ReportResult(Result As CimInstance)
+			Instance?.Dispose()
+			Instance = Result
+		End Sub
+
+		Protected Overrides Sub ReportCompletion()
+			CimCompletionTaskSource?.TrySetResult(Instance)
+		End Sub
+
+		Public Overrides Function StartAsync() As Task(Of CimInstance)
+			StartSubscriber()
+			Return CimCompletionTaskSource.Task
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
+			Return Session.GetInstanceAsync(Instance.CimSystemProperties.Namespace, Instance)
+		End Function
+	End Class
+
+	Public MustInherit Class CimAsyncInstancesController
 		Inherits CimAsyncController(Of CimInstance, CimInstanceList)
 
 		Private Instances As New CimInstanceList
 
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Public Async Sub RefreshAsync()
+			If Instances IsNot Nothing AndAlso Instances.Count > 0 Then
+				Dim RefreshController As New CimAsyncRefreshInstanceController(Session)
+				For Each Instance As CimInstance In Instances
+					RefreshController.Instance = Instance
+					Await RefreshController.StartAsync
+					Instance = RefreshController.Instance
+				Next
+			End If
 		End Sub
 
 		Protected Overrides Sub ReportResult(Result As CimInstance)
@@ -388,7 +448,7 @@ Namespace CIMitar
 	End Class
 
 	Public Class CimAsyncEnumerateInstancesController
-		Inherits CimAsyncInstanceController
+		Inherits CimAsyncInstancesController
 
 		Public Property ClassName As String
 
@@ -408,7 +468,7 @@ Namespace CIMitar
 	End Class
 
 	Public Class CimAsyncQueryInstancesController
-		Inherits CimAsyncInstanceController
+		Inherits CimAsyncInstancesController
 
 		Public Property QueryText As String
 
