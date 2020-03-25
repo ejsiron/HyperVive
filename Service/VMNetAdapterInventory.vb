@@ -5,25 +5,86 @@ Imports Microsoft.Management.Infrastructure
 Public Class VMNetAdapterInventory
 	Implements IDisposable
 
+	''' <summary>
+	''' Matches a virtual adapter's Instance ID to its MAC address
+	''' </summary>
 	Public Structure AdapterEntry
+		''' <summary>
+		''' The virtual network adapter's instance ID
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property InstanceID As String
+		''' <summary>
+		''' The virtual adapters MAC address, unformatted
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property MAC As String
 	End Structure
 
+	Public Event InventoryError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
-	Private Function ExtractVmIDFromInstanceID(ByVal InstanceID As String) As String
-		' InstanceID looks like this: Microsoft:A37EAECD-3442-4052-A124-B25562636069\9E9FB56B-418C-49A9-A191-5238EACEE8A1
-		' synthetic adapters have an additional location, like \2
-		' VmID is the first GUID
-		Try
-			Return InstanceID.Substring(InstanceID.IndexOf(":") + 1, 36) ' start 1 past the ":" char, then consume the length of a GUID plus hyphens
-		Catch ex As Exception
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Invalid network adapter instance id: {0}", InstanceID)})
-			Return Guid.Empty.ToString
-		End Try
-	End Function
+	Public Sub New(ByRef Session As CimSession)
+		Me.Session = Session
+		SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameSyntheticAdapterSettingData)}
+		SyntheticAdapterSettingsChangeSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameSyntheticAdapterSettingData)}
+		SyntheticAdapterSettingsDeleteSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameSyntheticAdapterSettingData)}
+		EmulatedAdapterSettingsCreateSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameEmulatedAdapterSettingData)}
+		EmulatedAdapterSettingsChangeSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameEmulatedAdapterSettingData)}
+		EmulatedAdapterSettingsDeleteSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
+			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameEmulatedAdapterSettingData)}
+		Reset()
+	End Sub
 
+	''' <summary>
+	''' Resets and restarts all subscribers
+	''' </summary>
+	Public Async Sub Reset()
+		SyntheticAdapterSettingsCreateSubscriber.Cancel()
+		SyntheticAdapterSettingsChangeSubscriber.Cancel()
+		SyntheticAdapterSettingsDeleteSubscriber.Cancel()
+		EmulatedAdapterSettingsCreateSubscriber.Cancel()
+		EmulatedAdapterSettingsChangeSubscriber.Cancel()
+		EmulatedAdapterSettingsDeleteSubscriber.Cancel()
+
+		AdaptersLock = New Object
+		SyncLock AdaptersLock
+			If CurrentAdapters Is Nothing Then
+				CurrentAdapters = New List(Of AdapterEntry)
+			Else
+				CurrentAdapters.Clear()
+			End If
+		End SyncLock
+
+		For Each AdapterClassName As String In {CimClassNameSyntheticAdapterSettingData, CimClassNameEmulatedAdapterSettingData}
+			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(Session, CimNamespaceVirtualization, AdapterClassName)
+				Using FoundAdapters As CimInstanceList = Await AdapterEnumerator.StartAsync
+					For Each AdapterInstance As CimInstance In FoundAdapters
+						AddAdapter(GetAdapterEntryFromInstance(AdapterInstance))
+					Next
+				End Using
+			End Using
+		Next
+		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(EnumeratedAdaptersTemplate, CurrentAdapters.Count)})
+
+		SyntheticAdapterSettingsCreateSubscriber.Start()
+		SyntheticAdapterSettingsChangeSubscriber.Start()
+		SyntheticAdapterSettingsDeleteSubscriber.Start()
+		EmulatedAdapterSettingsCreateSubscriber.Start()
+		EmulatedAdapterSettingsChangeSubscriber.Start()
+		EmulatedAdapterSettingsDeleteSubscriber.Start()
+	End Sub
+
+	''' <summary>
+	''' Find the virtual machine that owns a given MAC address
+	''' </summary>
+	''' <param name="MacAddress">The desired MAC in unformatted <see cref="String"/> format</param>
+	''' <returns>All virtual machine IDs that own an adapter with a matching MAC, in <see cref="List(Of String)" format/></returns>
 	Public Function GetVmIDFromMac(ByVal MacAddress As String) As List(Of String)
 		Dim MatchingMacs As New List(Of String)
 		SyncLock AdaptersLock
@@ -33,11 +94,44 @@ Public Class VMNetAdapterInventory
 		Return MatchingMacs
 	End Function
 
+	Private Const ModuleName As String = "Virtual Network Adapter Inventory"
+	Private Const InvalidAdapterTemplate As String = "Invalid network adapter instance id: {0}"
+	Private Const RegisteredNewAdapterTemplate As String = "Registered new virtual adapter with MAC {0}"
+	Private Const UpdatedAdapterTemplate As String = "Updated an adapter with MAC {0}"
+	Private Const AddedFromUpdateTemplate As String = "Added an adapter with MAC {0} from an update request"
+	Private Const DeletedAdapterTemplate As String = "Deleted {0} adapter(s)"
+	Private Const SyntheticCreate As String = "synthetic create"
+	Private Const SyntheticChange As String = "synthetic change"
+	Private Const SyntheticDelete As String = "synthetic delete"
+	Private Const EmulatedCreate As String = "emulated create"
+	Private Const EmulatedChange As String = "emulated change"
+	Private Const EmulatedDelete As String = "emulated delete"
+	Private Const Unknown As String = "Unknown"
+	Private Const SubscriberErrorTemplate As String = "Error received from a virtual adapter subscriber of type ""{0}"": {1}"
+	Private Const EnumeratedAdaptersTemplate As String = "Enumerated {0} network adapters"
+
 	Private AdaptersLock As Object
 	Private Property CurrentAdapters As List(Of AdapterEntry)
 
-	Private ServiceLog As EventLog
-	Private TargetSession As CimSession
+	''' <summary>
+	''' Extracts the owning virtual machine's ID from a virtual network adapter's instance ID
+	''' </summary>
+	''' <param name="InstanceID"></param>
+	''' <returns></returns>
+	Private Function ExtractVmIDFromInstanceID(ByVal InstanceID As String) As String
+		' InstanceID looks like this: Microsoft:A37EAECD-3442-4052-A124-B25562636069\9E9FB56B-418C-49A9-A191-5238EACEE8A1
+		' synthetic adapters have an additional location, like \2
+		' VmID is the first GUID
+		Try
+			Return InstanceID.Substring(InstanceID.IndexOf(":") + 1, 36) ' start 1 past the ":" char, then consume the length of a GUID plus hyphens
+		Catch ex As Exception
+			RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName,
+				.[Error] = New Exception(String.Format(InvalidAdapterTemplate, InstanceID))})
+			Return Guid.Empty.ToString
+		End Try
+	End Function
+
+	Private Session As CimSession
 	Private WithEvents SyntheticAdapterSettingsCreateSubscriber As CimSubscriptionController
 	Private WithEvents SyntheticAdapterSettingsChangeSubscriber As CimSubscriptionController
 	Private WithEvents SyntheticAdapterSettingsDeleteSubscriber As CimSubscriptionController
@@ -58,7 +152,7 @@ Public Class VMNetAdapterInventory
 		Dim NewAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(NewAdapter.MAC) Then
 			AddAdapter(NewAdapter)
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Registered new virtual adapter with MAC {0}", NewAdapter.MAC)})
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(RegisteredNewAdapterTemplate, NewAdapter.MAC)})
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
@@ -77,29 +171,43 @@ Public Class VMNetAdapterInventory
 										  End Sub)
 			End SyncLock
 			If AdapterFound Then
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Updated an adapter with MAC {0}", ChangedAdapter.MAC)})
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(UpdatedAdapterTemplate, ChangedAdapter.MAC)})
 			Else
 				AddAdapter(ChangedAdapter)
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Added an adapter with MAC {0} from an update request", ChangedAdapter.MAC)})
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(AddedFromUpdateTemplate, ChangedAdapter.MAC)})
 			End If
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
 
-	Public Sub OnDeleteAdapter(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles SyntheticAdapterSettingsDeleteSubscriber.EventReceived, EmulatedAdapterSettingsDeleteSubscriber.EventReceived
+	Private Sub OnDeleteAdapter(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles SyntheticAdapterSettingsDeleteSubscriber.EventReceived, EmulatedAdapterSettingsDeleteSubscriber.EventReceived
 		Dim ChangedAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(ChangedAdapter.MAC) Then
 			Dim RemovedAdapterCount As Integer = 0
 			SyncLock AdaptersLock
 				RemovedAdapterCount = CurrentAdapters.RemoveAll(Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.InstanceID = ChangedAdapter.InstanceID)
 			End SyncLock
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Deleted {0} adapter(s)", RemovedAdapterCount)})
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(DeletedAdapterTemplate, RemovedAdapterCount)})
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
 
-	Public Sub OnSubscriberError(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles SyntheticAdapterSettingsCreateSubscriber.ErrorOccurred, SyntheticAdapterSettingsChangeSubscriber.ErrorOccurred, SyntheticAdapterSettingsDeleteSubscriber.ErrorOccurred, EmulatedAdapterSettingsCreateSubscriber.ErrorOccurred, EmulatedAdapterSettingsChangeSubscriber.ErrorOccurred, EmulatedAdapterSettingsDeleteSubscriber.ErrorOccurred
-		ServiceLog.WriteEntry(String.Format("Error received from a subscriber: {0}", e.ErrorInstance.Message), EventLogEntryType.Error)
+	Private Sub OnSubscriberError(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles SyntheticAdapterSettingsCreateSubscriber.ErrorOccurred, SyntheticAdapterSettingsChangeSubscriber.ErrorOccurred, SyntheticAdapterSettingsDeleteSubscriber.ErrorOccurred, EmulatedAdapterSettingsCreateSubscriber.ErrorOccurred, EmulatedAdapterSettingsChangeSubscriber.ErrorOccurred, EmulatedAdapterSettingsDeleteSubscriber.ErrorOccurred
+		Dim SubscriberType As String = Unknown
+		If sender Is SyntheticAdapterSettingsCreateSubscriber Then
+			SubscriberType = SyntheticCreate
+		ElseIf sender Is SyntheticAdapterSettingsChangeSubscriber Then
+			SubscriberType = SyntheticChange
+		ElseIf sender Is SyntheticAdapterSettingsDeleteSubscriber Then
+			SubscriberType = SyntheticDelete
+		ElseIf sender Is EmulatedAdapterSettingsCreateSubscriber Then
+			SubscriberType = EmulatedCreate
+		ElseIf sender Is EmulatedAdapterSettingsChangeSubscriber Then
+			SubscriberType = EmulatedChange
+		ElseIf sender Is EmulatedAdapterSettingsDeleteSubscriber Then
+			SubscriberType = EmulatedDelete
+		End If
+		RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format(SubscriberErrorTemplate, SubscriberType, e.ErrorInstance.Message))})
 		e.ErrorInstance.Dispose()
 	End Sub
 
@@ -109,64 +217,6 @@ Public Class VMNetAdapterInventory
 				CurrentAdapters.Add(CType(NewAdapter, AdapterEntry))
 			End SyncLock
 		End If
-	End Sub
-
-	Public Sub New(ByRef TargetSession As CimSession, ByVal Log As EventLog)
-		ServiceLog = Log
-		Me.TargetSession = TargetSession
-		Try
-			SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameSyntheticAdapterSettingData)}
-			SyntheticAdapterSettingsChangeSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameSyntheticAdapterSettingData)}
-			SyntheticAdapterSettingsDeleteSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameSyntheticAdapterSettingData)}
-			EmulatedAdapterSettingsCreateSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameEmulatedAdapterSettingData)}
-			EmulatedAdapterSettingsChangeSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameEmulatedAdapterSettingData)}
-			EmulatedAdapterSettingsDeleteSubscriber = New CimSubscriptionController(TargetSession, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameEmulatedAdapterSettingData)}
-			Reset()
-		Catch ex As Exception
-			ServiceLog.WriteEntry(String.Format("New failed with {0}", ex.Message), EventLogEntryType.Error)
-		End Try
-	End Sub
-
-	Public Async Sub Reset()
-		SyntheticAdapterSettingsCreateSubscriber.Cancel()
-		SyntheticAdapterSettingsChangeSubscriber.Cancel()
-		SyntheticAdapterSettingsDeleteSubscriber.Cancel()
-		EmulatedAdapterSettingsCreateSubscriber.Cancel()
-		EmulatedAdapterSettingsChangeSubscriber.Cancel()
-		EmulatedAdapterSettingsDeleteSubscriber.Cancel()
-
-		AdaptersLock = New Object
-		SyncLock AdaptersLock
-			If CurrentAdapters Is Nothing Then
-				CurrentAdapters = New List(Of AdapterEntry)
-			Else
-				CurrentAdapters.Clear()
-			End If
-		End SyncLock
-
-		For Each AdapterClassName As String In {CimClassNameSyntheticAdapterSettingData, CimClassNameEmulatedAdapterSettingData}
-			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(TargetSession, CimNamespaceVirtualization, AdapterClassName)
-				Using FoundAdapters As CimInstanceList = Await AdapterEnumerator.StartAsync
-					For Each AdapterInstance As CimInstance In FoundAdapters
-						AddAdapter(GetAdapterEntryFromInstance(AdapterInstance))
-					Next
-				End Using
-			End Using
-		Next
-		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Enumerated {0} network adapters", CurrentAdapters.Count)})
-
-		SyntheticAdapterSettingsCreateSubscriber.Start()
-		SyntheticAdapterSettingsChangeSubscriber.Start()
-		SyntheticAdapterSettingsDeleteSubscriber.Start()
-		EmulatedAdapterSettingsCreateSubscriber.Start()
-		EmulatedAdapterSettingsChangeSubscriber.Start()
-		EmulatedAdapterSettingsDeleteSubscriber.Start()
 	End Sub
 
 #Region "IDisposable Support"

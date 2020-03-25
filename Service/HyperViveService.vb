@@ -3,11 +3,18 @@ Imports Microsoft.Management.Infrastructure
 Imports System.Security.Principal
 
 Public Module HyperViveEvents
+	''' <summary>
+	''' Debug-level message event
+	''' </summary>
 	Public Class DebugMessageEventArgs
+
 		Inherits EventArgs
 		Public Property Message As String = String.Empty
 	End Class
 
+	''' <summary>
+	''' Module-specific error message
+	''' </summary>
 	Public Class ModuleExceptionEventArgs
 		Inherits EventArgs
 
@@ -23,9 +30,26 @@ Public Class HyperViveService
 	Private WithEvents WOLListener As WakeOnLanListener
 	Private WithEvents VMStarter As VMStartController
 
+	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
+	Private Const ElevationError As String = "Must run as an elevated user"
+	Private Const DebugModeReportTemplate As String = "Debug mode set to {0}"
+	Private Const UnexpectedAppErrorTemplate As String = "Halting due to unexpected error ""{0}"" of type {1}"
+	Private Const UnexpectedModuleErrorTemplate As String = "Unexpected error of type ""{0}"" in module ""{1}"": {2}"
+	Private Const WolReceivedTemplate As String = "Received WOL frame from {0} for {1}"
+	Private Const DebugMessageTemplate As String = "Debug: {0}"
+	Private Const StartResultTemplate As String = "VM start operation {0}.
+VM name: {1}
+ID: {2}
+MAC address: {3}
+Request source: {4}
+Result code: {5}
+Result message: {6}"
+	Private Const SucceededMessage As String = "succeeded"
+	Private Const FailedMessage As String = "failed"
+
 	Private ReadOnly Property ServiceRegistryPath As String
 		Get
-			Return String.Format("SYSTEM\CurrentControlSet\Services\{0}", ServiceName)
+			Return String.Format(ServiceRegistryPathTemplate, ServiceName)
 		End Get
 	End Property
 
@@ -38,12 +62,12 @@ Public Class HyperViveService
 			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = ServiceRegistryPath, .ValueName = "DebugMode"}
 			UpdateDebugMode(Nothing, Nothing)
 			DebugModeSettingReader.Start()
-			AdapterInventory = New VMNetAdapterInventory(LocalCimSession, EventLog)
+			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
 			VMStarter = New VMStartController(LocalCimSession)
 			WOLListener = New WakeOnLanListener
 			WOLListener.Start()
 		Else
-			EventLog.WriteEntry("Must run as an elevated user", EventLogEntryType.Error)
+			EventLog.WriteEntry(ElevationError, EventLogEntryType.Error)
 			Kill(5)
 		End If
 	End Sub
@@ -62,32 +86,42 @@ Public Class HyperViveService
 		Catch ex As Exception
 			DebugMode = False
 		End Try
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Debug mode set to {0}", DebugMode)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(DebugModeReportTemplate, DebugMode)})
 	End Sub
 
 	Private Sub AppErrorReceived(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
 		Dim UnknownError As Exception = CType(e.ExceptionObject, Exception)
-		EventLog.WriteEntry(String.Format("Halting due to unexpected error ""{0}"" of type {1}", UnknownError.Message, UnknownError.GetType.FullName), EventLogEntryType.Error)
+		EventLog.WriteEntry(String.Format(UnexpectedAppErrorTemplate, UnknownError.Message, UnknownError.GetType.FullName), EventLogEntryType.Error)
 		Kill(CType(IIf(UnknownError.HResult = 0, -1, UnknownError.HResult), Integer))
 		If TypeOf UnknownError Is IDisposable Then   ' CIM exceptions are disposable
 			CType(UnknownError, IDisposable).Dispose()
 		End If
 	End Sub
 
-	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError
-		EventLog.WriteEntry(String.Format("Unexpected error of type ""{0}"" in module ""{1}"": {2}", e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error)
+	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, VMStarter.StarterError
+		EventLog.WriteEntry(String.Format(UnexpectedModuleErrorTemplate, e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error)
 	End Sub
 
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format("Received WOL frame from {0} for {1}", e.SenderIP.ToString, e.MacAddress)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress)})
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
-		VMStarter.Start(e.MacAddress, VmIDs)
+		VMStarter.Start(e.MacAddress, VmIDs, e.SenderIP.ToString)
 	End Sub
 
-	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.VMStartDebugMessage, DebugModeSettingReader.RegistryDebugMessage
+	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated
 		If DebugMode Then
-			EventLog.WriteEntry(String.Format("Debug: {0}", e.Message))
+			EventLog.WriteEntry(String.Format(DebugMessageTemplate, e.Message))
 		End If
+	End Sub
+
+	Private Sub WriteVMStartResults(ByVal sender As Object, ByVal e As VMStartResultEventArgs) Handles VMStarter.StartResult
+		With e
+			Dim MessageTemplate As String = String.Format(StartResultTemplate, IIf(.Success, SucceededMessage, FailedMessage).ToString,
+				.VirtualMachineInfo.Name, .VirtualMachineInfo.ID, .VirtualMachineInfo.MacAddress,
+				.VirtualMachineInfo.SourceIP, .ResultCode, .ResultText)
+			EventLog.WriteEntry(MessageTemplate,
+				CType(IIf(.Success, EventLogEntryType.Information, EventLogEntryType.Error), EventLogEntryType))
+		End With
 	End Sub
 
 	Private Sub Kill(ByVal ExitCode As Integer)

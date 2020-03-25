@@ -1,4 +1,18 @@
-﻿Imports Microsoft.Management.Infrastructure
+﻿' This file is part of the CIMitar project, a module to ease interaction with the CIM module
+' CIMitar, Copyright 2020 Eric Siron
+' Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+' documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+' the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+' to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+' The above copyright notice and this permission notice shall be included in all copies or substantial portions
+' of the Software.
+' THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+' THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+' AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+' TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+' SOFTWARE.
+
+Imports Microsoft.Management.Infrastructure
 Imports System.Threading
 
 Namespace CIMitar
@@ -12,7 +26,7 @@ Namespace CIMitar
 		''' </summary>
 		''' <param name="SubscriptionEvent"></param>
 		''' <returns><see cref="CimInstance"/></returns>
-		<Runtime.CompilerServices.Extension>
+				 <Runtime.CompilerServices.Extension>
 		Public Function GetSourceInstance(ByVal SubscriptionEvent As CimSubscriptionResult) As CimInstance
 			Dim InstancePropertyName As String =
 				IIf(SubscriptionEvent.Instance.CimSystemProperties.ClassName.Substring(0, 3) = "CIM", "SourceInstance", "TargetInstance").ToString
@@ -20,8 +34,10 @@ Namespace CIMitar
 		End Function
 
 		''' <summary>
-		''' Create a clone of a CimInstance.
+		''' Synchronously create a clone of a CimInstance.
 		''' </summary>
+		''' <remarks>Use to separate an instance from the object that generated. The cloned instance will
+		''' have its own lifetime. You are responsible for disposing clones.</remarks>
 		''' <param name="Instance">The <see cref="CimInstance"/> to clone</param>
 		''' <returns><see cref="CimInstance"/></returns>
 		<Runtime.CompilerServices.Extension>
@@ -35,7 +51,7 @@ Namespace CIMitar
 		''' <param name="[Class]">The <see cref="CimClass"/> to check.</param>
 		''' <param name="MethodName">The name of the method to check.</param>
 		''' <returns>True if the method is static for the class, False if it requires an instance.</returns>
-		<Runtime.CompilerServices.Extension>
+						 <Runtime.CompilerServices.Extension>
 		Public Function IsMethodStatic(ByVal [Class] As CimClass, ByVal MethodName As String) As Boolean
 			If [Class] IsNot Nothing AndAlso Not String.IsNullOrEmpty(MethodName) Then
 				For Each MethodDeclaration As CimMethodDeclaration In [Class].CimClassMethods
@@ -47,6 +63,11 @@ Namespace CIMitar
 			Return False
 		End Function
 
+		''' <summary>
+		''' Refreshes a <see cref="CimInstance"/>
+		''' </summary>
+		''' <param name="Instance">The <see cref="CimInstance"/> to refresh</param>
+		''' <param name="OwningSession">The <see cref="CimSession"/> that owns the instance</param>
 		<Runtime.CompilerServices.Extension>
 		Public Sub Refresh(ByRef Instance As CimInstance, ByVal OwningSession As CimSession)
 			Dim ReplacementInstance As CimInstance = OwningSession.GetInstance(Instance.CimSystemProperties.Namespace, Instance)
@@ -82,10 +103,16 @@ Namespace CIMitar
 	End Module
 
 	Public Module CustomCimEvents
+		''' <summary>
+		''' Base class for CIM events. Includes only the owning <see cref="CimSession"/>
+		''' </summary>
 		Public MustInherit Class CimEventArgs
 			Inherits EventArgs
 			Public Property Session As CimSession
 		End Class
+		''' <summary>
+		''' Reports a <see cref="CimException"/> from a CIM operation
+		''' </summary>
 		Public Class CimErrorEventArgs
 			Inherits CimEventArgs
 			Public Property ErrorInstance As CimException
@@ -93,13 +120,19 @@ Namespace CIMitar
 
 		Public Delegate Sub CimErrorEventHandler(ByVal sender As Object, ByVal e As CimErrorEventArgs)
 
+		''' <summary>
+		''' Returns a <see cref="CimInstanceList"/> from an instance operation
+		''' </summary>
 		Public Class CimInstancesReceivedArgs
 			Inherits CimEventArgs
-			Public Property Instances As List(Of CimInstance)
+			Public Property Instances As CimInstanceList
 		End Class
 
 		Public Delegate Sub CimInstancesReceivedHandler(ByVal sender As Object, ByVal e As CimInstancesReceivedArgs)
 
+		''' <summary>
+		''' Returns the <see cref="CimMethodResult"/> from a CIM method invocation
+		''' </summary>
 		Public Class CimResultReceivedArgs
 			Inherits CimEventArgs
 			Public Property Result As CimMethodResult
@@ -107,6 +140,9 @@ Namespace CIMitar
 
 		Public Delegate Sub CimResultReceivedHandler(ByVal sender As Object, ByVal e As CimResultReceivedArgs)
 
+		''' <summary>
+		''' Reports the <see cref="CimSubscriptionResult"/> generated by a CIM subscription
+		''' </summary>
 		Public Class CimSubscribedEventReceivedArgs
 			Inherits CimEventArgs
 
@@ -115,6 +151,9 @@ Namespace CIMitar
 
 		Public Delegate Sub CimSubscribedEventReceivedHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs)
 
+		''' <summary>
+		''' Reports CIM operation completion
+		''' </summary>
 		Public Class CimActionCompletedArgs
 			Inherits CimEventArgs
 		End Class
@@ -122,12 +161,15 @@ Namespace CIMitar
 		Public Delegate Sub CimActionCompletedHandler(ByVal sender As Object, ByVal e As CimActionCompletedArgs)
 	End Module
 
+	''' <summary>
+	''' Utility class to Dispose-enable a <see cref="List(Of CimInstance)"/>
+	''' </summary>
 	Public Class CimInstanceList
 		Inherits List(Of CimInstance)
 		Implements IDisposable
 
 		''' <summary>
-		''' Disposes all instances, then clears as normal
+		''' Disposes all instances, then clears the list as normal
 		''' </summary>
 		Public Overloads Sub Clear()
 			For Each Instance As CimInstance In Me
@@ -136,6 +178,10 @@ Namespace CIMitar
 			MyBase.Clear()
 		End Sub
 
+		''' <summary>
+		''' Creates clones of all <see cref="CimInstance"/> items in a <see cref="CimInstanceList"/> into a new <see cref="CimInstanceList"/>
+		''' </summary>
+		''' <returns><see cref="CimInstanceList"/></returns>
 		Public Function Clone() As CimInstanceList
 			Dim ClonedList As New CimInstanceList
 			For Each Instance As CimInstance In Me
@@ -192,6 +238,10 @@ Namespace CIMitar
 			End Set
 		End Property
 
+		''' <summary>
+		''' Adjusts a CIM operation to only impact key properties
+		''' </summary>
+		''' <returns></returns>
 		Public Property KeysOnly As Boolean = False
 
 		''' <summary>
@@ -207,7 +257,12 @@ Namespace CIMitar
 			End Get
 		End Property
 
-		Public ReadOnly Property IsRunning As Boolean
+		''' <summary>
+		''' Indicates if an operation has been invoked
+		''' </summary>
+		''' <remarks>Depends only on the existence of a subscriber. Does not necessarily reset after completion.</remarks>
+		''' <returns><see cref="Boolean"/></returns>
+		Public ReadOnly Property HasStarted As Boolean
 			Get
 				Return Subscriber IsNot Nothing
 			End Get
@@ -228,12 +283,25 @@ Namespace CIMitar
 			Me.Namespace = [Namespace]
 		End Sub
 
-		''' <param name="[Error]"></param>
+		''' <summary>
+		''' Relays errors reported by the operation subscriber to the owning operation object
+		''' </summary>
+		''' <param name="[Error]"><see cref="CimException"/></param>
 		Protected Overridable Sub ReportError(ByVal [Error] As CimException)
+			Subscriber?.Dispose()
 			_LastError?.Dispose()
 			_LastError = [Error]
 		End Sub
+
+		''' <summary>
+		''' Relays results from the operation subscriber to the owning operation object
+		''' </summary>
+		''' <param name="Result">An object of the owning operation's object type</param>
 		Protected MustOverride Sub ReportResult(ByVal Result As SubscriberType)
+
+		''' <summary>
+		''' Relays operation completion from the subscriber to the owning object
+		''' </summary>
 		Protected MustOverride Sub ReportCompletion()
 
 		Protected Const QueryLanguage As String = "WQL"
@@ -241,7 +309,7 @@ Namespace CIMitar
 		Protected AsyncOptions As New Options.CimOperationOptions
 
 		''' <summary>
-		''' An object that will receive events and responses from the infrastructure.
+		''' An object that will receive operation events and responses from the infrastructure.
 		''' </summary>
 		Protected Subscriber As IDisposable
 
@@ -251,7 +319,7 @@ Namespace CIMitar
 		''' Allows child classes to perform additional cleanup tasks following operation cancellation
 		''' </summary>
 		Protected Overridable Sub CancellationCallback()
-			' override in child classes
+			' override in child classes that use it
 		End Sub
 
 		''' <summary>
@@ -271,7 +339,8 @@ Namespace CIMitar
 		''' <summary>
 		''' Resets the object for disposal or to perform another operation. Outstanding operations will silently run to completion; use Cancel() first to stop them.
 		''' </summary>
-		''' <param name="CompleteClean">True for a full-teardown, false to set the object up for a new operation</param>
+		''' <param name="CompleteClean">Used by Dispose to completely tear down the object.</param>
+		''' <remarks>The object is not guaranteed to be usable if CompleteClean is set outside of Dispose()</remarks>
 		Protected Overridable Sub Reset(Optional ByVal CompleteClean As Boolean = False)
 			CimCancellationSource?.Dispose()
 			Subscriber?.Dispose()
@@ -299,7 +368,7 @@ Namespace CIMitar
 			Public ReportCompletion As ReportCompletionDelegate
 
 			Public Sub OnNext(value As ObserverType) Implements IObserver(Of ObserverType).OnNext
-				ReportResult?(CType(value, ObserverType))
+				ReportResult?(value)
 			End Sub
 
 			Public Sub OnError([error] As Exception) Implements IObserver(Of ObserverType).OnError
@@ -341,11 +410,21 @@ Namespace CIMitar
 #End Region
 	End Class
 
+	''' <summary>
+	''' Base object to encapsulate CIM operation
+	''' </summary>
+	''' <typeparam name="SubscriberType">The CIM type the system operation works on</typeparam>
+	''' <typeparam name="ReturnType">The type output by the operation</typeparam>
 	Public MustInherit Class CimAsyncController(Of SubscriberType, ReturnType)
 		Inherits CimControllerBase(Of SubscriberType, ReturnType)
 
 		Protected CimCompletionTaskSource As TaskCompletionSource(Of ReturnType)
 
+		''' <summary>
+		''' Creates a new operation in the indicated <see cref="CimSession"/> and CIM namespace
+		''' </summary>
+		''' <param name="Session">The active <see cref="CimSession"/> that will conduct the operation</param>
+		''' <param name="[Namespace]">The CIM namespace for the operation. Defaults to "root/CIMv2"</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
@@ -371,9 +450,16 @@ Namespace CIMitar
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Asynchronously refreshes a <see cref="CimInstance"/>
+	''' </summary>
 	Public Class CimAsyncRefreshInstanceController
 		Inherits CimAsyncController(Of CimInstance, CimInstance)
 
+		''' <summary>
+		''' The instance to refresh
+		''' </summary>
+		''' <returns><see cref="CimInstance"/></returns>
 		Public Property Instance As CimInstance
 
 		Public Overrides Property [Namespace] As String
@@ -389,6 +475,11 @@ Namespace CIMitar
 			End Set
 		End Property
 
+		''' <summary>
+		''' Creates a new asynchronous <see cref="CimInstance"/> refresher
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="Instance">The <see cref="CimInstance"/> to refresh.</param>
 		Sub New(ByVal Session As CimSession, Optional ByVal Instance As CimInstance = Nothing)
 			MyBase.New(Session)
 			Me.Instance = Instance
@@ -413,6 +504,9 @@ Namespace CIMitar
 		End Function
 	End Class
 
+	''' <summary>
+	''' A base class for CIM operations that return <see cref="CimInstanceList"/>
+	''' </summary>
 	Public MustInherit Class CimAsyncInstancesController
 		Inherits CimAsyncController(Of CimInstance, CimInstanceList)
 
@@ -422,6 +516,9 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
+		''' <summary>
+		''' Refreshes all instances in <see cref="Instances"/>
+		''' </summary>
 		Public Async Sub RefreshAsync()
 			If Instances IsNot Nothing AndAlso Instances.Count > 0 Then
 				Dim RefreshController As New CimAsyncRefreshInstanceController(Session)
@@ -447,11 +544,24 @@ Namespace CIMitar
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Retrieves all instances of a <see cref="CimClass"/>
+	''' </summary>
 	Public Class CimAsyncEnumerateInstancesController
 		Inherits CimAsyncInstancesController
 
+		''' <summary>
+		''' Name of the <see cref="CimClass"/> to enumerate
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property ClassName As String
 
+		''' <summary>
+		''' Creates a new <see cref="CimInstanceList"/> of all instances of the specified CIM class
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
+		''' <param name="ClassName">The name of the <see cref="CimClass"/> to enumerate.</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal ClassName As String = "")
 			MyBase.New(Session, [Namespace])
 			Me.ClassName = ClassName
@@ -467,11 +577,24 @@ Namespace CIMitar
 		End Function
 	End Class
 
+	''' <summary>
+	''' Executes a WQL query and returns a <see cref="CimInstanceList"/> with the results
+	''' </summary>
 	Public Class CimAsyncQueryInstancesController
 		Inherits CimAsyncInstancesController
 
+		''' <summary>
+		''' Complete text of the WQL query to execute
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property QueryText As String
 
+		''' <summary>
+		''' Creates a new CIM query object
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
+		''' <param name="QueryText">Complete text of the query to execute</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal QueryText As String = "")
 			MyBase.New(Session, [Namespace])
 			Me.QueryText = QueryText
@@ -487,18 +610,43 @@ Namespace CIMitar
 		End Function
 	End Class
 
+	''' <summary>
+	''' Base class for CIM method invocation objects
+	''' </summary>
 	Public MustInherit Class CimAsyncInvokeMethodControllerBase
 		Inherits CimAsyncController(Of CimMethodResultBase, CimMethodResult)
 
 		Private Result As CimMethodResultBase
 
+		''' <summary>
+		''' Name of the CIM method to execute
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property MethodName As String
+
+		''' <summary>
+		''' The input parameters to supply to the method
+		''' </summary>
+		''' <returns><see cref="CimMethodParametersCollection"/></returns>
+		''' <remarks>Do not include output parameters.</remarks>
 		Public Property InputParameters As New CimMethodParametersCollection
 
+		''' <summary>
+		''' Creates a new CIM method executor
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
 
+		''' <summary>
+		''' Creates a <see cref="CimAsyncInvokeClassMethodController"/> or <see cref="CimAsyncInvokeInstanceMethodController"/> by detecting if the specified method is an instance method or a class method.
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="Instance">A <see cref="CimInstance"/> that contains the desired method</param>
+		''' <param name="MethodName">Name of the method to execute</param>
+		''' <returns><see cref="CimAsyncInvokeClassMethodController"/> or <see cref="CimAsyncInvokeInstanceMethodController"/></returns>
 		Public Shared Function InvokeMethodControllerFactory(ByVal Session As CimSession, ByVal Instance As CimInstance, ByVal MethodName As String) As CimAsyncInvokeMethodControllerBase
 			If Instance Is Nothing OrElse String.IsNullOrEmpty(MethodName) Then
 				Return Nothing
@@ -526,11 +674,23 @@ Namespace CIMitar
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Executes a CIM instance method
+	''' </summary>
 	Public Class CimAsyncInvokeInstanceMethodController
 		Inherits CimAsyncInvokeMethodControllerBase
 
+		''' <summary>
+		''' The <see cref="CimInstance"/> that contains the method to execute
+		''' </summary>
+		''' <returns><see cref="CimInstance"/></returns>
 		Public Property Instance As CimInstance
 
+		''' <summary>
+		''' Creates a new CIM instance method operator
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
@@ -545,11 +705,23 @@ Namespace CIMitar
 		End Function
 	End Class
 
+	''' <summary>
+	''' Executes a CIM class method
+	''' </summary>
 	Public Class CimAsyncInvokeClassMethodController
 		Inherits CimAsyncInvokeMethodControllerBase
 
+		''' <summary>
+		''' The name of the <see cref="CimClass"/> that contains the method to execute
+		''' </summary>
+		''' <returns></returns>
 		Public Property ClassName As String
 
+		''' <summary>
+		''' Creates a new CIM class method operator
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
@@ -564,13 +736,26 @@ Namespace CIMitar
 		End Function
 	End Class
 
+	''' <summary>
+	''' Subscribes to CIM events
+	''' </summary>
 	Public Class CimSubscriptionController
 		Inherits CimControllerBase(Of CimSubscriptionResult, CimSubscriptionResult)
 
 		Public Event ErrorOccurred As CimErrorEventHandler
 		Public Event EventReceived As CimSubscribedEventReceivedHandler
 
+		''' <summary>
+		''' Complete text of the query that initiates the subscriber
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property QueryText As String
+
+		''' <summary>
+		''' Creates a new CIM subscriber
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub

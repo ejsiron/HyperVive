@@ -11,6 +11,9 @@ Public Module WOLEvents
 	End Class
 End Module
 
+''' <summary>
+''' Listens for Wake-On-LAN frames.
+''' </summary>
 Public Class WakeOnLanListener
 	Implements IDisposable
 
@@ -19,19 +22,15 @@ Public Class WakeOnLanListener
 		LegacyWOL = 7
 	End Enum
 
-	Private Const ModuleName As String = "Wake-On-LAN Listener"
-	Private Const MACWatchTimeoutSeconds As Integer = 5
-
-	Private Canceller As CancellationTokenSource = Nothing
-
 	Public Event MagicPacketReceived(ByVal sender As Object, ByVal e As MagicPacketReceivedEventArgs)
 	Public Event OperationCanceled(ByVal sender As Object, ByVal e As EventArgs)
 	Public Event ReceiverError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
-	Private ListLock As Object
-	Private RecentMACs As List(Of String)
-
+	''' <summary>
+	''' Starts the WOL listener
+	''' </summary>
+	''' <param name="DesiredPort"><see cref="Integer"/> of the port to listen on. Defaults to 9</param>
 	Public Async Sub Start(Optional ByVal DesiredPort As Integer = Ports.DefaultWOL)
 		ListLock = New Object
 		RecentMACs = New List(Of String)
@@ -60,6 +59,9 @@ Public Class WakeOnLanListener
 		End While
 	End Sub
 
+	''' <summary>
+	''' Stops the WOL listener
+	''' </summary>
 	Public Sub [Stop]()
 		If Canceller IsNot Nothing Then
 			Canceller.Cancel()
@@ -70,6 +72,18 @@ Public Class WakeOnLanListener
 		RecentMACs = Nothing
 		ListLock = Nothing
 	End Sub
+
+	Private Const ModuleName As String = "Wake-On-LAN Listener"
+	Private Const MACWatchTimeoutSeconds As Integer = 5
+	Private Const InvalidPacketFormat As String = "Magic packet received with an invalid format"
+	Private Const DuplicatePacketTemplate As String = "Received duplicate request for MAC {0}"
+	Private Const NewPacketTemplate As String = "Received new request for MAC {0}"
+	Private Const ExclusionEndedTemplate As String = "End exclusion period for MAC {0}"
+
+	Private Canceller As CancellationTokenSource = Nothing
+
+	Private ListLock As Object
+	Private RecentMACs As List(Of String)
 
 	Private Function ExtractMACFromMagicPacket(ByRef DataBuffer As Byte()) As String
 		' magic packet contents should be 102 bytes with an optional password
@@ -89,7 +103,7 @@ Public Class WakeOnLanListener
 		For InitialMacPosition As Integer = 6 To 11 ' starting one past the initial 6 bytes, looking at next 6 bytes
 			For MirroredMacOffset As Integer = 1 To 15 ' verify that the same char appears 15 more times, in 6 byte jumps
 				If DataBuffer(InitialMacPosition) <> DataBuffer(InitialMacPosition + (6 * MirroredMacOffset)) Then
-					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Magic packet received with an invalid format")})
+					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(InvalidPacketFormat)})
 					Return String.Empty
 				End If
 			Next
@@ -103,11 +117,11 @@ Public Class WakeOnLanListener
 	Private Sub ProcessReceivedMAC(ByVal MAC As String, ByVal SenderIP As IPAddress)
 		SyncLock ListLock
 			If RecentMACs?.Contains(MAC) Then
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Received duplicate request for MAC {0}", MAC)})
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(DuplicatePacketTemplate, MAC)})
 				Return
 			End If
 
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("Received new request for MAC {0}", MAC)})
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(NewPacketTemplate, MAC)})
 
 			RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
 
@@ -121,7 +135,7 @@ Public Class WakeOnLanListener
 						SyncLock ListLock
 							RecentMACs?.Remove(MAC)
 						End SyncLock
-						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format("End exclusion period for MAC {0}", MAC)})
+						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(ExclusionEndedTemplate, MAC)})
 					End Sub)
 	End Sub
 

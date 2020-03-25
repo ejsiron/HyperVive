@@ -9,25 +9,59 @@ Public Module RegistryEvents
 		Public Property ValueName As String
 		Public Property Value As Object
 	End Class
-
 End Module
 
-Partial Public Class RegistryController
+''' <summary>
+''' Retrieves a registry KVP value and watches it for changes.
+''' </summary>
+Public Class RegistryController
 	Implements IDisposable
 
 	Public Event RegistryValueChanged(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs)
 	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
-	Public Event RegistryDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
+	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
+	''' <summary>
+	''' The root registry key that contains the desired subkey
+	''' <para>Choose from:</para>
+	''' <para>- <see cref="Registry.ClassesRoot"/></para>
+	''' <para>- <see cref="Registry.CurrentConfig"/></para>
+	''' <para>- <see cref="Registry.CurrentUser"/></para>
+	''' <para>- <see cref="Registry.DynData"/></para>
+	''' <para>- <see cref="Registry.LocalMachine"/></para>
+	''' <para>- <see cref="Registry.PerformanceData"/></para>
+	''' <para>- <see cref="Registry.Users"/></para>
+	''' </summary>
+	''' <returns><see cref="RegistryKey"/></returns>
 	Public Property RootRegistry As RegistryKey
+
+	''' <summary>
+	''' Path to the desired key
+	''' </summary>
+	''' <example>"SYSTEM\CurrentControlSet\Services\HyperVive"</example>
+	''' <returns><see cref="String"/></returns>
 	Public Property KeyPath As String
+	''' <summary>
+	''' Name of the KVP that owns the target value
+	''' </summary>
+	''' <returns><see cref="String"/></returns>
 	Public Property ValueName As String
+	''' <summary>
+	''' The type of the value
+	''' </summary>
+	''' <returns><see cref="RegistryValueKind"/></returns>
 	Public ReadOnly Property ValueKind As RegistryValueKind = RegistryValueKind.String
 
 	Private _Value As Object = 0
+
+	''' <summary>
+	''' Current value of the KVP
+	''' </summary>
+	''' <remarks>Retrieves the value directly if the subscriber is not running.</remarks>
+	''' <returns><see cref="Object"/></returns>
 	Public ReadOnly Property Value As Object
 		Get
-			If ValueWatcher Is Nothing OrElse Not ValueWatcher.IsRunning Then
+			If ValueWatcher Is Nothing OrElse Not ValueWatcher.HasStarted Then
 				UpdateKeyValue()
 			End If
 			Return _Value
@@ -48,10 +82,18 @@ Partial Public Class RegistryController
 		e.ErrorInstance.Dispose()
 	End Sub
 
+	''' <summary>
+	''' Creates a new registry value watcher
+	''' </summary>
+	''' <param name="Session"><see cref="CimSession"/> for the local system</param>
+	''' <remarks>Will not operate on remote sessions</remarks>
 	Public Sub New(ByRef Session As CimSession)
 		Me.Session = Session
 	End Sub
 
+	''' <summary>
+	''' Starts the value watcher
+	''' </summary>
 	Public Sub Start()
 		UpdateKeyValue()
 		ValueWatcher = New CimSubscriptionController(Session) With {
@@ -61,10 +103,17 @@ Partial Public Class RegistryController
 		ValueWatcher.Start()
 	End Sub
 
+	''' <summary>
+	''' Stops the value watcher
+	''' </summary>
 	Public Sub [Stop]()
 		ValueWatcher?.Cancel()
+		ValueWatcher?.Dispose()
 	End Sub
 
+	''' <summary>
+	''' Reads the key value from the registry
+	''' </summary>
 	Private Sub UpdateKeyValue()
 		Dim TargetKey As RegistryKey = RootRegistry.OpenSubKey(KeyPath)
 		If TargetKey IsNot Nothing Then

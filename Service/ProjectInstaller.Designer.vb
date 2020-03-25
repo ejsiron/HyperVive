@@ -32,8 +32,11 @@
 		'
 		'HyperViveServiceInstaller
 		'
-		Me.HyperViveServiceInstaller.DisplayName = "Hyper-Vive"
+		Me.HyperViveServiceInstaller.Description = "Performs utility functions for Hyper-V virtual machines, such as wake-on-LAN oper" &
+	"ations"
+		Me.HyperViveServiceInstaller.DisplayName = "HyperVive"
 		Me.HyperViveServiceInstaller.ServiceName = "HyperVive"
+		Me.HyperViveServiceInstaller.StartType = System.ServiceProcess.ServiceStartMode.Automatic
 		'
 		'ProjectInstaller
 		'

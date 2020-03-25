@@ -8,11 +8,11 @@ Imports System.Runtime.InteropServices
 
 ' Review the values of the assembly attributes
 
-<Assembly: AssemblyTitle("Service")>
-<Assembly: AssemblyDescription("")>
+<Assembly: AssemblyTitle("HyperVive")>
+<Assembly: AssemblyDescription("Service that performs utility functions for Hyper-V virtual machines, such as wake-on-LAN packet processing")>
 <Assembly: AssemblyCompany("")>
-<Assembly: AssemblyProduct("Service")>
-<Assembly: AssemblyCopyright("Copyright ©  2020")>
+<Assembly: AssemblyProduct("HyperVive")>
+<Assembly: AssemblyCopyright("Copyright ©  2020 Eric Siron")>
 <Assembly: AssemblyTrademark("")>
 
 <Assembly: ComVisible(False)>

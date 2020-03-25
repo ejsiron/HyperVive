@@ -19,6 +19,7 @@
 	Public Const CimPropertyNameAddress As String = "Address"
 	Public Const CimPropertyNameEnabledState As String = "EnabledState"
 	Public Const CimPropertyNameJobState As String = "JobState"
+	Public Const CimPropertyNameJobStatus As String = "JobStatus"
 	Public Const CimPropertyNameErrorCode As String = "ErrorCode"
 	Public Const CimPropertyNameName As String = "Name"
 	Public Const CimPropertyNameElementName As String = "ElementName"
