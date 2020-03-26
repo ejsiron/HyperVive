@@ -120,6 +120,7 @@ Public Class RegistryController
 			Try
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
+				'System.IO.IOException -- make sure is only thrown for missing, then trap with DebugMessage
 			Catch ex As Exception
 				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex})
 			Finally
