@@ -20,6 +20,8 @@ Data flow:
 4. HyperVive starts any virtual machine that passes all of the previous checks
 5. HyperVive logs matched WOL frames and the outcome of start events to the Application log
 
+Newly-created virtual adapters set to use a dynamic MAC (like those on a newly-created VM) will have a MAC of 00:00:00:00:00:00. If HyperVive receives a WOL frame for that MAC, it will start all applicable VMs.
+
 ## Debug Mode
 
 To instruct HyperVive to log detailed messages for troubleshooting, make the following registry change:
