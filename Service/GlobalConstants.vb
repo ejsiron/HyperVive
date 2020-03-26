@@ -1,6 +1,7 @@
 ﻿Module GlobalConstants
 #Region "Cim Globals"
 	Public Const CimNamespaceVirtualization As String = "root/virtualization/v2"
+	Public Const CimNamespaceRootDefault As String = "root/DEFAULT"
 
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"

@@ -71,6 +71,7 @@ Public Class RegistryController
 	Private Session As CimSession
 	Private Const ModuleName As String = "Registry"
 	Private WithEvents ValueWatcher As CimSubscriptionController
+	Private Const MissingRegistryKVPTemplate As String = "Registry KVP ""{0}"" not found at ""{1}"", retaining current value ""{2}"""
 
 	Private Sub ProcessUpdatedValue(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles ValueWatcher.EventReceived
 		e.SubscribedEvent.Dispose()
@@ -97,7 +98,7 @@ Public Class RegistryController
 	Public Sub Start()
 		UpdateKeyValue()
 		ValueWatcher = New CimSubscriptionController(Session) With {
-			.[Namespace] = "root/DEFAULT",
+			.[Namespace] = CimNamespaceRootDefault,
 			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
 		}
 		ValueWatcher.Start()
@@ -120,7 +121,9 @@ Public Class RegistryController
 			Try
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
-				'System.IO.IOException -- make sure is only thrown for missing, then trap with DebugMessage
+			Catch ioex As IO.IOException
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {
+					.Message = String.Format(MissingRegistryKVPTemplate, ValueName, KeyPath, _Value)})
 			Catch ex As Exception
 				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex})
 			Finally
