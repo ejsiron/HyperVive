@@ -2,6 +2,8 @@
 
 A service that performs utility functions for Hyper-V virtual machines
 
+Current version: 1.0.1
+
 ## Version 1.0 feature: Wake-On-LAN
 
 HyperVive intercepts wake-on-LAN frames and starts all matching virtual machines from Off, Saved, or Paused states.
@@ -10,7 +12,7 @@ HyperVive intercepts wake-on-LAN frames and starts all matching virtual machines
 
 HyperVive maintains a local inventory of all virtual adapters connected to virtual machines (synthetic or emulated). It continually watches for adds, changes, and deletes. These events occur when virtual machines are created, migrated on or off the host, and when individual adapters are added, removed, or changed on virtual machines.
 
-HyperVive listens on all *host* network adapters (physical or virtual). This means that the management operating system does need a presence in all VLANs that might carry WOL frames. It cannot listen on VLANs that only virtual machines connect to.
+HyperVive listens on all _host_ network adapters (physical or virtual). This means that the management operating system does need a presence in all VLANs that might carry WOL frames. It cannot listen on VLANs that only virtual machines connect to.
 
 Data flow:
 
@@ -26,16 +28,16 @@ Newly-created virtual adapters set to use a dynamic MAC (like those on a newly-c
 
 To instruct HyperVive to log detailed messages for troubleshooting, make the following registry change:
 
-* **Path**: HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\HyperVive
-* **Value name**: DebugMode
-* **Value type**: DWORD
-* **Value**: 1 for debug logging, 0 for minimal logging (default)
+- **Path**: HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\HyperVive
+- **Value name**: DebugMode
+- **Value type**: DWORD
+- **Value**: 1 for debug logging, 0 for minimal logging (default)
 
 Changes take effect instantly; you do not need to restart the service. If you create and then delete the key, it will stay in its current mode until restarted.
 
 ## Installation Instructions
 
-Copy *HyperVive.exe* to a suitable location. *Recommended*: C:\Program Files (x86)\HyperVive
+Copy _HyperVive.exe_ to a suitable location. _Recommended_: C:\Program Files (x86)\HyperVive
 
 Run the following at an elevated PowerShell prompt (make adjustments to the path as necessary):
 
@@ -59,5 +61,5 @@ Delete the folder that you created to hold HyperVive.exe. You may also need to d
 
 I plan to add the following:
 
-* An event recorder for checkpoints: WHO created them
-* A proper MSI installer
+- An event recorder for checkpoints: WHO created them
+- A proper MSI installer
