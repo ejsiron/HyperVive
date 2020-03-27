@@ -76,6 +76,7 @@ Result message: {6}"
 		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 		WOLListener?.Dispose()
 		DebugModeSettingReader.Stop()
+		AdapterInventory.Dispose()
 		VMStarter = Nothing
 		LocalCimSession?.Dispose()
 	End Sub
