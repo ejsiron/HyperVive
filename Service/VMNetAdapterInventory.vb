@@ -24,7 +24,7 @@ Public Class VMNetAdapterInventory
 	Public Event InventoryError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
-	Public Sub New(ByRef Session As CimSession)
+	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
 		SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
 				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameSyntheticAdapterSettingData)}
