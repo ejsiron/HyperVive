@@ -26,18 +26,12 @@ Public Class VMNetAdapterInventory
 
 	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
-		SyntheticAdapterSettingsCreateSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-				.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameSyntheticAdapterSettingData)}
-		SyntheticAdapterSettingsChangeSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameSyntheticAdapterSettingData)}
-		SyntheticAdapterSettingsDeleteSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameSyntheticAdapterSettingData)}
-		EmulatedAdapterSettingsCreateSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceCreation, 1, CimClassNameEmulatedAdapterSettingData)}
-		EmulatedAdapterSettingsChangeSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceModification, 1, CimClassNameEmulatedAdapterSettingData)}
-		EmulatedAdapterSettingsDeleteSubscriber = New CimSubscriptionController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateTimedEvent, CimClassNameInstanceDeletion, 1, CimClassNameEmulatedAdapterSettingData)}
+		SyntheticAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		SyntheticAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		SyntheticAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		EmulatedAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
+		EmulatedAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
+		EmulatedAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
 		Reset()
 	End Sub
 
@@ -84,7 +78,7 @@ Public Class VMNetAdapterInventory
 	''' Find the virtual machine that owns a given MAC address
 	''' </summary>
 	''' <param name="MacAddress">The desired MAC in unformatted <see cref="String"/> format</param>
-	''' <returns>All virtual machine IDs that own an adapter with a matching MAC, in <see cref="List(Of String)" format/></returns>
+	''' <returns>All virtual machine IDs that own an adapter with a matching MAC, in <see cref="List(Of String)"/> format</returns>
 	Public Function GetVmIDFromMac(ByVal MacAddress As String) As List(Of String)
 		Dim MatchingMacs As New List(Of String)
 		SyncLock AdaptersLock
@@ -132,18 +126,18 @@ Public Class VMNetAdapterInventory
 	End Function
 
 	Private Session As CimSession
-	Private WithEvents SyntheticAdapterSettingsCreateSubscriber As CimSubscriptionController
-	Private WithEvents SyntheticAdapterSettingsChangeSubscriber As CimSubscriptionController
-	Private WithEvents SyntheticAdapterSettingsDeleteSubscriber As CimSubscriptionController
-	Private WithEvents EmulatedAdapterSettingsCreateSubscriber As CimSubscriptionController
-	Private WithEvents EmulatedAdapterSettingsChangeSubscriber As CimSubscriptionController
-	Private WithEvents EmulatedAdapterSettingsDeleteSubscriber As CimSubscriptionController
+	Private WithEvents SyntheticAdapterSettingsCreateSubscriber As InstanceCreationController
+	Private WithEvents SyntheticAdapterSettingsChangeSubscriber As InstanceModificationController
+	Private WithEvents SyntheticAdapterSettingsDeleteSubscriber As InstanceDeletionController
+	Private WithEvents EmulatedAdapterSettingsCreateSubscriber As InstanceCreationController
+	Private WithEvents EmulatedAdapterSettingsChangeSubscriber As InstanceModificationController
+	Private WithEvents EmulatedAdapterSettingsDeleteSubscriber As InstanceDeletionController
 
 	Private Function GetAdapterEntryFromInstance(ByVal Instance As CimInstance) As AdapterEntry
 		Dim NewEntry As New AdapterEntry
 		If Instance IsNot Nothing Then
-			NewEntry.InstanceID = Instance.GetInstancePropertyValueString(CimPropertyNameInstanceID)
-			NewEntry.MAC = Instance.GetInstancePropertyValueString(CimPropertyNameAddress)
+			NewEntry.InstanceID = Instance.GetInstancePropertyStringValue(CimPropertyNameInstanceID)
+			NewEntry.MAC = Instance.GetInstancePropertyStringValue(CimPropertyNameAddress)
 		End If
 		Return NewEntry
 	End Function

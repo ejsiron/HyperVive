@@ -106,8 +106,8 @@ Public Class VMStartController
 					Async Sub(ByVal VM As CimInstance)
 						Dim CurrentState As VirtualMachineStates = CType(VM.CimInstanceProperties(CimPropertyNameEnabledState).Value, VirtualMachineStates)
 						Dim Info As New VMInfo With {
-							.ID = VM.GetInstancePropertyValueString(CimPropertyNameName),
-							.Name = VM.GetInstancePropertyValueString(CimPropertyNameElementName),
+							.ID = VM.GetInstancePropertyStringValue(CimPropertyNameName),
+							.Name = VM.GetInstancePropertyStringValue(CimPropertyNameElementName),
 							.MacAddress = MacAddress,
 							.SourceIP = SourceIP
 						}
@@ -125,9 +125,9 @@ Public Class VMStartController
 										AsJob = True
 										Dim JobResult As KeyValuePair(Of UShort, String)
 										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
-										JobID = JobReference.GetInstancePropertyValueString(CimPropertyNameInstanceID)
+										JobID = JobReference.GetInstancePropertyStringValue(CimPropertyNameInstanceID)
 										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(JobCreatedMessageTemplate, JobID, Info.Name, Info.ID)})
-										JobResult = Await WatchVMStartJob(JobID)
+										JobResult = Await JobSubscriber.WatchVirtualizationJobCompletionAsync(Me, Session, JobID)
 										ResultCode = JobResult.Key
 										JobStatus = JobResult.Value
 									End If
@@ -142,9 +142,7 @@ Public Class VMStartController
 
 	Private Const ModuleName As String = "VM Starter"
 	Private Const DefaultFailureReason As String = "Code not recognized"
-	Private Const JobNotFoundErrorTemplate As String = "Attemped to process a job with instance ID {0} but the job was not found."
 	Private Const JobCreatedMessageTemplate As String = "Created start job with instance ID {0} for VM {1} with GUID {0}"
-	Private Const JobNotFoundMessage As String = "Job not found"
 
 	Private Shared Function ConvertVMListToQueryFilter(ByVal VmIDs As List(Of String)) As String
 		Dim ListEntries As New List(Of String)(VmIDs.Count)
@@ -171,31 +169,4 @@ Public Class VMStartController
 		End If
 		RaiseEvent StartResult(Me, ResultMessage)
 	End Sub
-
-	Private Async Function WatchVMStartJob(ByVal JobInstanceID As String) As Task(Of KeyValuePair(Of UShort, String))
-		Dim Job As CimInstance
-		Dim JobList As CimInstanceList
-		Dim JobState As JobStates = JobStates.New
-		Dim ErrorCode As UShort
-		Dim JobStatus As String = JobNotFoundMessage
-		Using JobChecker As New CimAsyncQueryInstancesController(Session, CimNamespaceVirtualization) With {
-			.QueryText = String.Format(CimQueryTemplateMsvmConcreteJob, JobInstanceID)
-			}
-			JobList = Await JobChecker.StartAsync
-			If JobList.Count > 0 Then
-				Job = JobList.First
-				While JobState = JobStates.Running OrElse JobState = JobStates.New OrElse JobState = JobStates.Starting
-					Job.Refresh(Session)
-					JobState = CType(Job.CimInstanceProperties(CimPropertyNameJobState).Value, JobStates)
-				End While
-				ErrorCode = CUShort(Job.CimInstanceProperties(CimPropertyNameErrorCode).Value)
-				JobStatus = Job.GetInstancePropertyValueString(CimPropertyNameJobStatus)
-			Else
-				RaiseEvent StarterError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] =
-					New Exception(String.Format(JobNotFoundErrorTemplate, JobInstanceID))})
-				JobState = JobStates.Exception
-			End If
-			Return New KeyValuePair(Of UShort, String)(ErrorCode, JobStatus)
-		End Using
-	End Function
 End Class

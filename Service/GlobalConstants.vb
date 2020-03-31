@@ -5,9 +5,6 @@
 
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"
-	Public Const CimClassNameInstanceCreation As String = "CIM_InstCreation"
-	Public Const CimClassNameInstanceModification As String = "CIM_InstModification"
-	Public Const CimClassNameInstanceDeletion As String = "CIM_InstDeletion"
 	Public Const CimClassNameVirtualizationJob As String = "Msvm_ConcreteJob"
 
 	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
@@ -21,12 +18,13 @@
 	Public Const CimPropertyNameEnabledState As String = "EnabledState"
 	Public Const CimPropertyNameJobState As String = "JobState"
 	Public Const CimPropertyNameJobStatus As String = "JobStatus"
+	Public Const CimPropertyNameJobType As String = "JobType"
 	Public Const CimPropertyNameErrorCode As String = "ErrorCode"
 	Public Const CimPropertyNameName As String = "Name"
 	Public Const CimPropertyNameElementName As String = "ElementName"
+	Public Const CimPropertyNameOwner As String = "Owner"
 
 	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
-	Public Const CimQueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE SourceInstance ISA '{2}'"
 	Public Const CimQueryTemplateMsvmConcreteJob As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
 	Public Const CimQueryTemplateVirtualMachine As String = "SELECT * FROM Msvm_ComputerSystem {0}"
 
@@ -40,6 +38,13 @@
 		Killed = 9
 		Exception = 10
 		Service = 11
+	End Enum
+
+	Public Enum VirtualizationJobTypes As UShort
+		NewSnapshot = 70
+		ApplySnapshot = 71
+		DeleteSnapshot = 72
+		ClearSnapshotState = 73
 	End Enum
 #End Region 'Cim Globals
 

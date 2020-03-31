@@ -29,6 +29,7 @@ Public Class HyperViveService
 	Private WithEvents AdapterInventory As VMNetAdapterInventory
 	Private WithEvents WOLListener As WakeOnLanListener
 	Private WithEvents VMStarter As VMStartController
+	Private WithEvents CheckpointWatcher As CheckpointJobWatcher
 
 	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
 	Private Const ElevationError As String = "Must run as an elevated user"
@@ -46,6 +47,10 @@ Result code: {5}
 Result message: {6}"
 	Private Const SucceededMessage As String = "succeeded"
 	Private Const FailedMessage As String = "failed"
+	Private Const CheckpointActionTemplate As String = "Checkpoint action ""{0}"" ({1}) initiated by {2}
+Job instance ID: {3}"
+	Private Const CheckpointActionCompletedTemplate As String = "
+Result: {0} ({1})"
 
 	Private ReadOnly Property ServiceRegistryPath As String
 		Get
@@ -66,6 +71,7 @@ Result message: {6}"
 			VMStarter = New VMStartController(LocalCimSession)
 			WOLListener = New WakeOnLanListener
 			WOLListener.Start()
+			CheckpointWatcher = New CheckpointJobWatcher(LocalCimSession)
 		Else
 			EventLog.WriteEntry(ElevationError, EventLogEntryType.Error)
 			Kill(5)
@@ -79,6 +85,7 @@ Result message: {6}"
 		AdapterInventory.Dispose()
 		VMStarter = Nothing
 		LocalCimSession?.Dispose()
+		CheckpointWatcher?.Dispose()
 	End Sub
 
 	Private Sub UpdateDebugMode(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs) Handles DebugModeSettingReader.RegistryValueChanged
@@ -123,6 +130,15 @@ Result message: {6}"
 			EventLog.WriteEntry(MessageTemplate,
 				CType(IIf(.Success, EventLogEntryType.Information, EventLogEntryType.Error), EventLogEntryType))
 		End With
+	End Sub
+
+	Private Sub WriteCheckpointActionStarted(ByVal sender As Object, ByVal e As CheckpointJobWatcher.CheckpointActionEventArgs) Handles CheckpointWatcher.CheckpointJobStarted
+		EventLog.WriteEntry(String.Format(CheckpointActionTemplate, e.JobTypeName, e.JobType, e.UserName, e.JobInstanceID))
+	End Sub
+
+	Private Sub WriteCheckpointActionCompleted(ByVal sender As Object, ByVal e As CheckpointJobWatcher.CheckpointActionCompletedEventArgs) Handles CheckpointWatcher.CheckpointJobCompleted
+		EventLog.WriteEntry(String.Format(CheckpointActionTemplate, e.JobTypeName, e.JobType, e.UserName, e.JobInstanceID) +
+			String.Format(CheckpointActionCompletedTemplate, e.CompletionStatus, e.CompletionCode))
 	End Sub
 
 	Private Sub Kill(ByVal ExitCode As Integer)
