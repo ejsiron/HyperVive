@@ -1,4 +1,5 @@
 ﻿Imports HyperVive.CIMitar
+Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
 ''' <summary>
@@ -42,12 +43,12 @@ Public Module VMStartControllerEvents
 		''' Indicates procedure success
 		''' </summary>
 		''' <returns><see cref="Boolean"/></returns>
-		Public Property Success As Boolean
+		Public ReadOnly Property Success As Boolean = ResultCode = 0US
 		''' <summary>
 		''' Numerical code for the result
 		''' </summary>
 		''' <returns><see cref="UShort"/></returns>
-		Public Property ResultCode As UShort
+		Public Property ResultCode As UShort = 0US
 		''' <summary>
 		''' Result explanation
 		''' </summary>
@@ -97,44 +98,40 @@ Public Class VMStartController
 	''' <param name="VmIDs">A <see cref="List(Of String)"/> of virtual machine IDs, in <see cref="String"/> format</param>
 	''' <param name="SourceIP">A <see cref="String"/> that contains the source IP of the WOL frame. Unvalidated, passes through to events.</param>
 	Public Async Sub Start(ByVal MacAddress As String, ByVal VmIDs As List(Of String), SourceIP As String)
-		Using VMLister As New CimAsyncQueryInstancesController(Session, CimNamespaceVirtualization) With {
+		Using VMLister As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
 			.QueryText = String.Format(CimQueryTemplateVirtualMachine, ConvertVMListToQueryFilter(VmIDs)),
 			.KeysOnly = True
 		}
 			Using TargetVMs As CimInstanceList = Await VMLister.StartAsync
 				Parallel.ForEach(TargetVMs,
 					Async Sub(ByVal VM As CimInstance)
-						Dim CurrentState As VirtualMachineStates = CType(VM.CimInstanceProperties(CimPropertyNameEnabledState).Value, VirtualMachineStates)
+						Dim CurrentState As VirtualMachineStates = CType(VM.CimInstanceProperties(PropertyNameEnabledState).Value, VirtualMachineStates)
 						Dim Info As New VMInfo With {
-							.ID = VM.GetInstancePropertyStringValue(CimPropertyNameName),
-							.Name = VM.GetInstancePropertyStringValue(CimPropertyNameElementName),
+							.ID = VM.InstancePropertyString(PropertyNameName),
+							.Name = VM.InstancePropertyString(PropertyNameElementName),
 							.MacAddress = MacAddress,
 							.SourceIP = SourceIP
 						}
-						Dim AsJob As Boolean = False
 						Dim ResultCode As UShort = VirtualizationMethodErrors.InvalidState
-						Dim JobID As String = String.Empty
-						Dim JobStatus As String = String.Empty
+						Dim Job As CimInstance = Nothing
+						Dim JobId As String = String.Empty
 						If IsVmStartable(CurrentState) Then
-							Using VMStartController As New CimAsyncInvokeInstanceMethodController(Session, CimNamespaceVirtualization) With {.Instance = VM}
+							Using VMStartController As New CimAsyncInvokeInstanceMethodController(Session, NamespaceVirtualization) With {.Instance = VM}
 								VMStartController.MethodName = CimMethodNameRequestStateChange
 								VMStartController.InputParameters.Add(CimMethodParameter.Create(CimParameterNameRequestedState, VirtualMachineStates.Running, CimType.UInt16, 0))
 								Using StartResult As CimMethodResult = Await VMStartController.StartAsync
 									ResultCode = CUShort(StartResult.ReturnValue.Value)
 									If ResultCode = VirtualizationMethodErrors.JobStarted Then
-										AsJob = True
-										Dim JobResult As KeyValuePair(Of UShort, String)
 										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
-										JobID = JobReference.GetInstancePropertyStringValue(CimPropertyNameInstanceID)
-										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(JobCreatedMessageTemplate, JobID, Info.Name, Info.ID)})
-										JobResult = Await JobSubscriber.WatchVirtualizationJobCompletionAsync(Me, Session, JobID)
-										ResultCode = JobResult.Key
-										JobStatus = JobResult.Value
+										JobId = JobReference.InstancePropertyString(PropertyNameInstanceID)
+										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID)})
+										Dim StartWatcher As New VirtualizationJobCompletionController(Session)
+										Job = Await StartWatcher.StartAsync(JobId)
 									End If
 								End Using
 							End Using
 						End If
-						ProcessVMStartResult(ResultCode, Info, AsJob, JobStatus)
+						ProcessVMStartResult(ResultCode, Info, Job)
 					End Sub)
 			End Using
 		End Using
@@ -156,10 +153,12 @@ Public Class VMStartController
 		Return CurrentState = VirtualMachineStates.Off OrElse CurrentState = VirtualMachineStates.Saved
 	End Function
 
-	Private Sub ProcessVMStartResult(ByVal ResultCode As UShort, ByVal Info As VMInfo, ByVal AsJob As Boolean, Optional ByVal JobStatus As String = "")
-		Dim ResultMessage As New VMStartResultEventArgs With {.VirtualMachineInfo = Info, .ResultCode = ResultCode, .Success = ResultCode = 0}
-		If AsJob Then
-			ResultMessage.ResultText = JobStatus
+	Private Sub ProcessVMStartResult(ByVal ResultCode As UShort, ByVal Info As VMInfo, ByRef JobInstance As CimInstance)
+		Dim ResultMessage As New VMStartResultEventArgs With {.VirtualMachineInfo = Info, .ResultCode = ResultCode}
+		If JobInstance IsNot Nothing Then
+			ResultMessage.ResultCode = JobInstance.InstancePropertyUInt16(PropertyNameErrorCode)
+			ResultMessage.ResultText = JobInstance.InstancePropertyString(PropertyNameJobStatus)
+			JobInstance.Dispose()
 		Else
 			If [Enum].IsDefined(GetType(VirtualizationMethodErrors), ResultCode) Then
 				ResultMessage.ResultText = CType(ResultCode, VirtualizationMethodErrors).ToString

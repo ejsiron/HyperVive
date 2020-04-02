@@ -1,11 +1,10 @@
 ﻿Module GlobalConstants
 #Region "Cim Globals"
-	Public Const CimNamespaceVirtualization As String = "root/virtualization/v2"
+
 	Public Const CimNamespaceRootDefault As String = "root/DEFAULT"
 
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
 	Public Const CimClassNameEmulatedAdapterSettingData As String = "Msvm_EmulatedEthernetPortSettingData"
-	Public Const CimClassNameVirtualizationJob As String = "Msvm_ConcreteJob"
 
 	Public Const CimMethodNameRequestStateChange As String = "RequestStateChange"
 
@@ -13,19 +12,7 @@
 	Public Const CimParameterNameTimeoutPeriod As String = "TimeoutPeriod"
 	Public Const CimParameterNameJob As String = "Job"
 
-	Public Const CimPropertyNameInstanceID As String = "InstanceID"
-	Public Const CimPropertyNameAddress As String = "Address"
-	Public Const CimPropertyNameEnabledState As String = "EnabledState"
-	Public Const CimPropertyNameJobState As String = "JobState"
-	Public Const CimPropertyNameJobStatus As String = "JobStatus"
-	Public Const CimPropertyNameJobType As String = "JobType"
-	Public Const CimPropertyNameErrorCode As String = "ErrorCode"
-	Public Const CimPropertyNameName As String = "Name"
-	Public Const CimPropertyNameElementName As String = "ElementName"
-	Public Const CimPropertyNameOwner As String = "Owner"
-
 	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
-	Public Const CimQueryTemplateMsvmConcreteJob As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
 	Public Const CimQueryTemplateVirtualMachine As String = "SELECT * FROM Msvm_ComputerSystem {0}"
 
 	Public Enum JobStates As UShort

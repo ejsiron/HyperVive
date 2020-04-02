@@ -79,13 +79,13 @@ Result: {0} ({1})"
 	End Sub
 
 	Protected Overrides Sub OnStop()
-		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 		WOLListener?.Dispose()
 		DebugModeSettingReader.Stop()
 		AdapterInventory.Dispose()
 		VMStarter = Nothing
-		LocalCimSession?.Dispose()
 		CheckpointWatcher?.Dispose()
+		LocalCimSession?.Dispose()
+		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 	End Sub
 
 	Private Sub UpdateDebugMode(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs) Handles DebugModeSettingReader.RegistryValueChanged
@@ -106,7 +106,7 @@ Result: {0} ({1})"
 		End If
 	End Sub
 
-	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, VMStarter.StarterError
+	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, VMStarter.StarterError, CheckpointWatcher.CheckpointWatcherErrorOccurred
 		EventLog.WriteEntry(String.Format(UnexpectedModuleErrorTemplate, e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error)
 	End Sub
 
@@ -116,7 +116,7 @@ Result: {0} ({1})"
 		VMStarter.Start(e.MacAddress, VmIDs, e.SenderIP.ToString)
 	End Sub
 
-	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated
+	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated, CheckpointWatcher.DebugMessageGenerated
 		If DebugMode Then
 			EventLog.WriteEntry(String.Format(DebugMessageTemplate, e.Message))
 		End If

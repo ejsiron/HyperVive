@@ -13,6 +13,7 @@
 ' SOFTWARE.
 
 Imports Microsoft.Management.Infrastructure
+Imports System.Diagnostics.Eventing.Reader
 Imports System.Threading
 
 Namespace CIMitar
@@ -26,7 +27,8 @@ Namespace CIMitar
 		Public Const WmiClassNameInstanceDeletion As String = "__InstanceDeletionEvent"
 		Public Const CimSubscriptionInstanceSelector As String = "SourceInstance"
 		Public Const WmiSubscriptionInstanceSelector As String = "TargetInstance"
-		Public Const QueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE {2} ISA {3}"
+		Public Const QueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE {2} ISA '{3}'"
+		Public Const PropertyNameName As String = "Name"
 	End Module
 
 	''' <summary>
@@ -93,7 +95,7 @@ Namespace CIMitar
 		''' <param name="Property">The <see cref="CimProperty"/> that contains the value to extract</param>
 		''' <returns><see cref="String"/></returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetValueString(ByVal [Property] As CimProperty) As String
+		Public Function [String](ByVal [Property] As CimProperty) As String
 			Dim StringValue As String = [Property]?.Value?.ToString
 			Return IIf(String.IsNullOrEmpty(StringValue), String.Empty, StringValue).ToString
 		End Function
@@ -102,15 +104,23 @@ Namespace CIMitar
 		''' Shortcut method to extract the string value of a CIM instance property
 		''' </summary>
 		''' <param name="Instance"><see cref="CimInstance"/> that owns the property</param>
-		''' <param name="PropertyName">Name of the desired property</param>
+		''' <param name="Name">Name of the desired property</param>
 		''' <returns>The value of the property if present, otherwise an empty string.</returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetInstancePropertyStringValue(ByVal Instance As CimInstance, ByVal PropertyName As String) As String
-			If Instance Is Nothing Then
-				Return String.Empty
+		Public Function InstancePropertyString(ByVal Instance As CimInstance, ByVal Name As String) As String
+			Return [String](ExtractInstanceProperty(Instance, Name))
+		End Function
+
+		Private Function ExtractValue(Of T)(ByRef [Property] As CimProperty, ByVal ExpectedType As CimType, ByRef DefaultValue As T) As T
+			If [Property] IsNot Nothing AndAlso [Property].Value IsNot Nothing AndAlso [Property].CimType = ExpectedType Then
+				Return CType([Property].Value, T)
 			Else
-				Return GetValueString(Instance.CimInstanceProperties(PropertyName))
+				Return DefaultValue
 			End If
+		End Function
+
+		Private Function ExtractArray(Of T)(ByVal [Property] As CimProperty, ByVal ExpectedType As CimType) As List(Of T)
+			Return ExtractValue([Property], ExpectedType, New T(0) {}).ToList
 		End Function
 
 		''' <summary>
@@ -119,11 +129,20 @@ Namespace CIMitar
 		''' <param name="[Property]">The <see cref="CimProperty"/> that contains the value to extract</param>
 		''' <returns>The <see cref="UShort"/> value if conversion possible, 0 otherwise.</returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetValueUInt16(ByVal [Property] As CimProperty) As UShort
+		Public Function UInt16(ByVal [Property] As CimProperty) As UShort
+			Return ExtractValue([Property], CimType.UInt16, 0US)
+		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function UInt16Array(ByVal [Property] As CimProperty) As List(Of UShort)
+			Return ExtractArray(Of UShort)([Property], CimType.UInt16Array)
+		End Function
+
+		Private Function ExtractInstanceProperty(ByRef Instance As CimInstance, ByVal Name As String) As CimProperty
 			Try
-				Return CUShort([Property]?.Value)
+				Return Instance.CimInstanceProperties(Name)
 			Catch ex As Exception
-				Return 0US
+				Return Nothing
 			End Try
 		End Function
 
@@ -131,15 +150,16 @@ Namespace CIMitar
 		''' Shortcut method to extract the 16-bit unsigned integer value of a CIM instance property
 		''' </summary>
 		''' <param name="Instance"><see cref="CimInstance"/> that owns the property</param>
-		''' <param name="PropertyName">Name of the desired property</param>
+		''' <param name="Name">Name of the desired property</param>
 		''' <returns></returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetInstancePropertyUInt16Value(ByVal Instance As CimInstance, ByVal PropertyName As String) As UShort
-			If Instance IsNot Nothing AndAlso Instance.CimInstanceProperties(PropertyName) IsNot Nothing Then
-				Return GetValueUInt16(Instance.CimInstanceProperties(PropertyName))
-			Else
-				Return 0
-			End If
+		Public Function InstancePropertyUInt16(ByVal Instance As CimInstance, ByVal Name As String) As UShort
+			Return UInt16(ExtractInstanceProperty(Instance, Name))
+		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function InstancePropertyUInt16Array(ByVal Instance As CimInstance, ByVal Name As String) As List(Of UShort)
+			Return UInt16Array(ExtractInstanceProperty(Instance, Name))
 		End Function
 	End Module
 
@@ -264,6 +284,22 @@ Namespace CIMitar
 		End Class
 
 		Public Delegate Sub CimActionCompletedHandler(ByVal sender As Object, ByVal e As CimActionCompletedArgs)
+	End Module
+
+	Public Module CustomCimObjects
+		Public Property HelpLink As String = String.Empty
+		Public Class CimSafeException
+			Public Sub New()
+
+			End Sub
+			Public Sub New(UnsafeException As CimException)
+				With UnsafeException
+					HelpLink = .HelpLink
+
+					.Dispose()
+				End With
+			End Sub
+		End Class
 	End Module
 
 	''' <summary>
@@ -445,6 +481,7 @@ Namespace CIMitar
 		''' <param name="CompleteClean">Used by Dispose to completely tear down the object.</param>
 		''' <remarks>The object is not guaranteed to be usable if CompleteClean is set outside of Dispose()</remarks>
 		Protected Overridable Sub Reset(Optional ByVal CompleteClean As Boolean = False)
+			CimCancellationSource?.Cancel()
 			CimCancellationSource?.Dispose()
 			Subscriber?.Dispose()
 			Subscriber = Nothing
@@ -622,7 +659,7 @@ Namespace CIMitar
 		''' <summary>
 		''' Refreshes all instances in <see cref="Instances"/>
 		''' </summary>
-		Public Async Sub RefreshAsync()
+		Public Async Function RefreshAsync() As Task(Of CimInstanceList)
 			If Instances IsNot Nothing AndAlso Instances.Count > 0 Then
 				Dim RefreshController As New CimAsyncRefreshInstanceController(Session)
 				For Each Instance As CimInstance In Instances
@@ -631,7 +668,8 @@ Namespace CIMitar
 					Instance = RefreshController.Instance
 				Next
 			End If
-		End Sub
+			Return Instances
+		End Function
 
 		Protected Overrides Sub ReportResult(Result As CimInstance)
 			Instances.Add(Result)
@@ -835,7 +873,7 @@ Namespace CIMitar
 		End Function
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
-			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters)
+			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters, AsyncOptions)
 		End Function
 	End Class
 
@@ -868,7 +906,7 @@ Namespace CIMitar
 		End Sub
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimSubscriptionResult)
-			Return Session.SubscribeAsync([Namespace], QueryLanguage, QueryText)
+			Return Session.SubscribeAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
 		End Function
 
 		Protected Overrides Sub ReportError([Error] As CimException)
@@ -913,15 +951,6 @@ Namespace CIMitar
 		Public Property WatchedClassName As String = ""
 		Public Property QueryInterval As UInteger = 1
 		Public Property WatchType As IndicationType
-
-		Public Overrides Property QueryText As String
-			Get
-				Return MyBase.QueryText
-			End Get
-			Set(value As String)
-				' TODO: worth it to implement a parser? change setters to interface? -- for now, ignore manual set
-			End Set
-		End Property
 
 		Public Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Category)
 			MyBase.New(Session, [Namespace])

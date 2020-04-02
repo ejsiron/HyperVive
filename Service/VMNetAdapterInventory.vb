@@ -1,5 +1,5 @@
-﻿Imports HyperVive.HyperViveService
-Imports HyperVive.CIMitar
+﻿Imports HyperVive.CIMitar
+Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
 Public Class VMNetAdapterInventory
@@ -26,12 +26,12 @@ Public Class VMNetAdapterInventory
 
 	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
-		SyntheticAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
-		SyntheticAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
-		SyntheticAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, CimNamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
-		EmulatedAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
-		EmulatedAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
-		EmulatedAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, CimNamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
+		SyntheticAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		SyntheticAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		SyntheticAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData)
+		EmulatedAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
+		EmulatedAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
+		EmulatedAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData)
 		Reset()
 	End Sub
 
@@ -56,7 +56,7 @@ Public Class VMNetAdapterInventory
 		End SyncLock
 
 		For Each AdapterClassName As String In {CimClassNameSyntheticAdapterSettingData, CimClassNameEmulatedAdapterSettingData}
-			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(Session, CimNamespaceVirtualization, AdapterClassName)
+			Using AdapterEnumerator As New CimAsyncEnumerateInstancesController(Session, NamespaceVirtualization, AdapterClassName)
 				Using FoundAdapters As CimInstanceList = Await AdapterEnumerator.StartAsync
 					For Each AdapterInstance As CimInstance In FoundAdapters
 						AddAdapter(GetAdapterEntryFromInstance(AdapterInstance))
@@ -136,8 +136,8 @@ Public Class VMNetAdapterInventory
 	Private Function GetAdapterEntryFromInstance(ByVal Instance As CimInstance) As AdapterEntry
 		Dim NewEntry As New AdapterEntry
 		If Instance IsNot Nothing Then
-			NewEntry.InstanceID = Instance.GetInstancePropertyStringValue(CimPropertyNameInstanceID)
-			NewEntry.MAC = Instance.GetInstancePropertyStringValue(CimPropertyNameAddress)
+			NewEntry.InstanceID = Instance.InstancePropertyString(PropertyNameInstanceID)
+			NewEntry.MAC = Instance.InstancePropertyString(PropertyNameAddress)
 		End If
 		Return NewEntry
 	End Function
