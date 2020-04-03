@@ -9,7 +9,10 @@ Public Module HyperViveEvents
 	Public Class DebugMessageEventArgs
 
 		Inherits EventArgs
-		Public Property Message As String = String.Empty
+		Public Property Message As String
+		Public Sub New(ByVal Message As String)
+			Me.Message = Message
+		End Sub
 	End Class
 
 	''' <summary>
@@ -67,11 +70,12 @@ Result: {0} ({1})"
 			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = ServiceRegistryPath, .ValueName = "DebugMode"}
 			UpdateDebugMode(Nothing, Nothing)
 			DebugModeSettingReader.Start()
-			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
-			VMStarter = New VMStartController(LocalCimSession)
-			WOLListener = New WakeOnLanListener
-			WOLListener.Start()
+			'			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
+			'			VMStarter = New VMStartController(LocalCimSession)
+			'			WOLListener = New WakeOnLanListener
+			'			WOLListener.Start()
 			CheckpointWatcher = New CheckpointJobWatcher(LocalCimSession)
+			CheckpointWatcher.Start()
 		Else
 			EventLog.WriteEntry(ElevationError, EventLogEntryType.Error)
 			Kill(5)
@@ -81,8 +85,9 @@ Result: {0} ({1})"
 	Protected Overrides Sub OnStop()
 		WOLListener?.Dispose()
 		DebugModeSettingReader.Stop()
-		AdapterInventory.Dispose()
+		AdapterInventory?.Dispose()
 		VMStarter = Nothing
+		CheckpointWatcher?.Cancel()
 		CheckpointWatcher?.Dispose()
 		LocalCimSession?.Dispose()
 		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
@@ -94,7 +99,7 @@ Result: {0} ({1})"
 		Catch ex As Exception
 			DebugMode = False
 		End Try
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(DebugModeReportTemplate, DebugMode)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs(String.Format(DebugModeReportTemplate, DebugMode)))
 	End Sub
 
 	Private Sub AppErrorReceived(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
@@ -108,10 +113,13 @@ Result: {0} ({1})"
 
 	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, VMStarter.StarterError, CheckpointWatcher.CheckpointWatcherErrorOccurred
 		EventLog.WriteEntry(String.Format(UnexpectedModuleErrorTemplate, e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error)
+		If TypeOf e Is IDisposable Then
+			CType(e, IDisposable).Dispose()
+		End If
 	End Sub
 
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs(String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress)))
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
 		VMStarter.Start(e.MacAddress, VmIDs, e.SenderIP.ToString)
 	End Sub

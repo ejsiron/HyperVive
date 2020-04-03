@@ -7,7 +7,6 @@ Namespace CIMitar.Virtualization
 		Public Const NamespaceVirtualization As String = "root/virtualization/v2"
 		Public Const ClassNameVirtualizationJob As String = "Msvm_ConcreteJob"
 		Public Const PropertyNameInstanceID As String = "InstanceID"
-		Public Const PropertyNameCaption As String = "Caption"
 		Public Const PropertyNameJobState As String = "JobState"
 		Public Const PropertyNameJobStatus As String = "JobStatus"
 		Public Const PropertyNameJobType As String = "JobType"
@@ -16,27 +15,30 @@ Namespace CIMitar.Virtualization
 		Public Const PropertyNameAddress As String = "Address"
 		Public Const PropertyNameEnabledState As String = "EnabledState"
 		Public Const PropertyNameElementName As String = "ElementName"
-		Public Const PropertyNameOperationalStatus As String = "OperationalStatus"
-		Public Const PropertyNameStatusDescriptions As String = "StatusDescriptions"
-		Public Const PropertyNameStatus As String = "Status"
 		Public Const PropertyNameHealthState As String = "HealthState"
-		Public Const PropertyNameTimeSubmitted As String = "TimeSubmitted"
-		Public Const PropertyNameScheduledStartTime As String = "ScheduledStartTime"
-		Public Const PropertyNameStartTime As String = "StartTime"
-		Public Const PropertyNameElapsedTime As String = "ElapsedTime"
-		Public Const PropertyNameJobRunTimes As String = "JobRunTimes"
-		Public Const PropertyNameLocalOrUtcTime As String = "LocalOrUtcTime"
-		Public Const PropertyNamePriority As String = "Priority"
-		Public Const PropertyNamePercentComplete As String = "PercentComplete"
-		Public Const PropertyNameDeleteOnCompletion As String = "DeleteOnCompletion"
-		Public Const PropertyNameErrorDescription As String = "ErrorDescription"
-		Public Const PropertyNameErrorSummaryDescription As String = "ErrorSummaryDescription"
-		Public Const PropertyNameRecoveryAction As String = "RecoveryAction"
-		Public Const PropertyNameTimeOfLastStateChange As String = "TimeOfLastStateChange"
-		Public Const PropertyNameTimeBeforeRemoval As String = "TimeBeforeRemoval"
-		Public Const PropertyNameCancellable As String = "Cancellable"
 
-		Public Const QueryTemplateMsvmConcreteJob As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
+		Public Const QueryTemplateMsvmConcreteJobById As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
+	End Module
+
+	Public Module Enums
+		Public Enum JobStates As UShort
+			[New] = 2
+			Starting = 3
+			Running = 4
+			ShuttingDown = 6
+			Completed = 7
+			Terminated = 8
+			Killed = 9
+			Exception = 10
+			Service = 11
+		End Enum
+
+		Public Enum VirtualizationJobTypes As UShort
+			NewSnapshot = 70
+			ApplySnapshot = 71
+			DeleteSnapshot = 72
+			ClearSnapshotState = 73
+		End Enum
 	End Module
 
 	Public Module CustomCimVirtualizationEvents
@@ -66,7 +68,7 @@ Namespace CIMitar.Virtualization
 		Public Async Function StartAsync(ByVal JobInstanceID As String) As Task(Of CimInstance)
 			Dim Job As CimInstance = Nothing
 			Using JobWatcher As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
-				.QueryText = String.Format(QueryTemplateMsvmConcreteJob, JobInstanceID)
+				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)
 				}
 				Dim JobList As CimInstanceList = Await JobWatcher.StartAsync
 				If JobList.Count > 0 Then
@@ -83,8 +85,9 @@ Namespace CIMitar.Virtualization
 		Public Sub Start(ByVal JobInstanceID As String)
 			JobSubscriber?.Cancel()
 			JobSubscriber?.Dispose()
+			InstanceID = JobInstanceID
 			JobSubscriber = New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
-				.QueryText = String.Format(QueryTemplateMsvmConcreteJob, JobInstanceID)}
+				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)}
 			JobSubscriber.StartAsync.ContinueWith(AddressOf WatcherCallback)
 		End Sub
 

@@ -124,7 +124,7 @@ Public Class VMStartController
 									If ResultCode = VirtualizationMethodErrors.JobStarted Then
 										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
 										JobId = JobReference.InstancePropertyString(PropertyNameInstanceID)
-										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID)})
+										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID)))
 										Dim StartWatcher As New VirtualizationJobCompletionController(Session)
 										Job = Await StartWatcher.StartAsync(JobId)
 									End If

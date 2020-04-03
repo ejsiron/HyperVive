@@ -13,7 +13,6 @@
 ' SOFTWARE.
 
 Imports Microsoft.Management.Infrastructure
-Imports System.Diagnostics.Eventing.Reader
 Imports System.Threading
 
 Namespace CIMitar
@@ -139,11 +138,7 @@ Namespace CIMitar
 		End Function
 
 		Private Function ExtractInstanceProperty(ByRef Instance As CimInstance, ByVal Name As String) As CimProperty
-			Try
-				Return Instance.CimInstanceProperties(Name)
-			Catch ex As Exception
-				Return Nothing
-			End Try
+			Return Instance.CimInstanceProperties.Where(Function(SearchProperty As CimProperty) SearchProperty.Name = Name).FirstOrDefault
 		End Function
 
 		''' <summary>
@@ -284,22 +279,6 @@ Namespace CIMitar
 		End Class
 
 		Public Delegate Sub CimActionCompletedHandler(ByVal sender As Object, ByVal e As CimActionCompletedArgs)
-	End Module
-
-	Public Module CustomCimObjects
-		Public Property HelpLink As String = String.Empty
-		Public Class CimSafeException
-			Public Sub New()
-
-			End Sub
-			Public Sub New(UnsafeException As CimException)
-				With UnsafeException
-					HelpLink = .HelpLink
-
-					.Dispose()
-				End With
-			End Sub
-		End Class
 	End Module
 
 	''' <summary>
@@ -483,6 +462,7 @@ Namespace CIMitar
 		Protected Overridable Sub Reset(Optional ByVal CompleteClean As Boolean = False)
 			CimCancellationSource?.Cancel()
 			CimCancellationSource?.Dispose()
+			CimCancellationSource = Nothing
 			Subscriber?.Dispose()
 			Subscriber = Nothing
 			_LastError?.Dispose()
@@ -912,6 +892,7 @@ Namespace CIMitar
 		Protected Overrides Sub ReportError([Error] As CimException)
 			MyBase.ReportError([Error])
 			RaiseEvent ErrorOccurred(Me, New CimErrorEventArgs With {.Session = Session, .ErrorInstance = [Error]})
+			StartSubscriber()
 		End Sub
 
 		Protected Overrides Sub ReportResult(Result As CimSubscriptionResult)
@@ -971,7 +952,7 @@ Namespace CIMitar
 		End Function
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimSubscriptionResult)
-			If QueryInterval = 0 Then QueryInterval = 1
+			If QueryInterval < 2 Then QueryInterval = 2
 			Dim IndicationClass As String = String.Empty
 			Select Case WatchType
 				Case IndicationType.Creation

@@ -103,7 +103,7 @@ Public Class WakeOnLanListener
 		For InitialMacPosition As Integer = 6 To 11 ' starting one past the initial 6 bytes, looking at next 6 bytes
 			For MirroredMacOffset As Integer = 1 To 15 ' verify that the same char appears 15 more times, in 6 byte jumps
 				If DataBuffer(InitialMacPosition) <> DataBuffer(InitialMacPosition + (6 * MirroredMacOffset)) Then
-					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(InvalidPacketFormat)})
+					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(InvalidPacketFormat)))
 					Return String.Empty
 				End If
 			Next
@@ -117,11 +117,11 @@ Public Class WakeOnLanListener
 	Private Sub ProcessReceivedMAC(ByVal MAC As String, ByVal SenderIP As IPAddress)
 		SyncLock ListLock
 			If RecentMACs?.Contains(MAC) Then
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(DuplicatePacketTemplate, MAC)})
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(DuplicatePacketTemplate, MAC)))
 				Return
 			End If
 
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(NewPacketTemplate, MAC)})
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(NewPacketTemplate, MAC)))
 
 			RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
 
@@ -135,7 +135,7 @@ Public Class WakeOnLanListener
 						SyncLock ListLock
 							RecentMACs?.Remove(MAC)
 						End SyncLock
-						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = String.Format(ExclusionEndedTemplate, MAC)})
+						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(ExclusionEndedTemplate, MAC)))
 					End Sub)
 	End Sub
 

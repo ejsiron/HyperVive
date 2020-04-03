@@ -1,4 +1,5 @@
-﻿Imports HyperVive.CIMitar
+﻿Imports System.IO
+Imports HyperVive.CIMitar
 Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
@@ -28,7 +29,10 @@ Public Class CheckpointJobWatcher
 
 	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
-		JobSubscriber = New CimSubscriptionController(Session, NamespaceVirtualization)
+		'JobSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, ClassNameVirtualizationJob)
+		JobSubscriber = New CimSubscriptionController(Session, NamespaceVirtualization) With {.QueryText =
+		"SELECT * FROM CIM_InstCreation WITHIN 1 WHERE SourceInstance ISA 'Msvm_ConcreteJob'"}
+		'"SELECT * FROM __InstanceCreationEvent WITHIN 1 WHERE TargetInstance ISA 'Msvm_ConcreteJob'"}
 	End Sub
 
 	Public Sub Start()
@@ -41,6 +45,7 @@ Public Class CheckpointJobWatcher
 
 	Private Session As CimSession
 	Private Const ModuleName As String = "Checkpoint Watcher"
+	'Private WithEvents JobSubscriber As InstanceCreationController
 	Private WithEvents JobSubscriber As CimSubscriptionController
 	Private Const ApplySnapshotAction As String = "Apply"
 	Private Const ClearSnapshotStateAction As String = "Clear state"
@@ -49,61 +54,66 @@ Public Class CheckpointJobWatcher
 	Private Const UnexpectedJobClassIntercepted As String = "Checkpoint watcher received unexpected event"
 
 	Private Sub JobHandler(ByVal sender As Object, ByVal e As CimEventArgs) Handles JobSubscriber.EventReceived
-		Dim CheckpointAction As String = String.Empty
-		Dim UserName As String
-		Dim InstanceID As String
-		Dim JobType As UShort = 0US
-		Dim JobInstance As CimInstance
-		Dim IsCompleted As Boolean = False
-		Dim CompletionCode As UShort = 0US
-		Dim CompletionStatus As String = String.Empty
-		If TypeOf e Is CimSubscribedEventReceivedArgs Then
-			JobInstance = CType(e, CimSubscribedEventReceivedArgs).SubscribedEvent.GetSourceInstance
-		ElseIf TypeOf e Is VirtualizationJobCompletedArgs Then
-			JobInstance = CType(e, VirtualizationJobCompletedArgs).InstanceID
-			CompletionCode = JobInstance.InstancePropertyUInt16(PropertyNameErrorCode)
-			CompletionStatus = JobInstance.InstancePropertyString(PropertyNameJobStatus)
-			IsCompleted = True
-		Else
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs With {.Message = UnexpectedJobClassIntercepted})
-			Return
-		End If
-		Using JobInstance
-			JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
-			Select Case JobType
-				Case VirtualizationJobTypes.ApplySnapshot
-					CheckpointAction = ApplySnapshotAction
-				Case VirtualizationJobTypes.ClearSnapshotState
-					CheckpointAction = ClearSnapshotStateAction
-				Case VirtualizationJobTypes.DeleteSnapshot
-					CheckpointAction = DeleteSnapshotAction
-				Case VirtualizationJobTypes.NewSnapshot
-					CheckpointAction = NewSnapshotAction
-				Case Else
-					' some non-checkpoint related job type, let it pass
-					Return
-			End Select
-			UserName = JobInstance.InstancePropertyString(PropertyNameOwner)
-			InstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
-			RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {.JobInstanceID = InstanceID, .JobType = JobType, .JobTypeName = CheckpointAction, .Session = Session, .UserName = UserName})
-		End Using
-		If IsCompleted Then
-			RaiseEvent CheckpointJobCompleted(Me, New CheckpointActionCompletedEventArgs With {
-				.Session = Session,
-				.JobInstanceID = InstanceID,
-				.JobType = JobType,
-				.JobTypeName = CheckpointAction,
-				.UserName = UserName,
-				.CompletionCode = CompletionCode,
-				.CompletionStatus = CompletionStatus})
-		Else
-			RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {
-				.Session = Session,
-				.JobInstanceID = InstanceID,
-				.JobType = JobType,
-				.JobTypeName = CheckpointAction,
-				.UserName = UserName})
-		End If
+		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs("Handler called"))
+		'Dim CheckpointAction As String = String.Empty
+		'Dim UserName As String
+		'Dim InstanceID As String
+		'Dim JobType As UShort = 0US
+		'Dim JobInstance As CimInstance
+		'Dim IsCompleted As Boolean = False
+		'Dim CompletionCode As UShort = 0US
+		'Dim CompletionStatus As String = String.Empty
+		'If TypeOf e Is CimSubscribedEventReceivedArgs Then
+		'	JobInstance = CType(e, CimSubscribedEventReceivedArgs).SubscribedEvent.GetSourceInstance
+		'ElseIf TypeOf e Is VirtualizationJobCompletedArgs Then
+		'	JobInstance = CType(e, VirtualizationJobCompletedArgs).InstanceID
+		'	CompletionCode = JobInstance.InstancePropertyUInt16(PropertyNameErrorCode)
+		'	CompletionStatus = JobInstance.InstancePropertyString(PropertyNameJobStatus)
+		'	IsCompleted = True
+		'Else
+		'	RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(UnexpectedJobClassIntercepted))
+		'	Return
+		'End If
+		'Using JobInstance
+		'	JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
+		'	Select Case JobType
+		'		Case VirtualizationJobTypes.ApplySnapshot
+		'			CheckpointAction = ApplySnapshotAction
+		'		Case VirtualizationJobTypes.ClearSnapshotState
+		'			CheckpointAction = ClearSnapshotStateAction
+		'		Case VirtualizationJobTypes.DeleteSnapshot
+		'			CheckpointAction = DeleteSnapshotAction
+		'		Case VirtualizationJobTypes.NewSnapshot
+		'			CheckpointAction = NewSnapshotAction
+		'		Case Else
+		'			' some non-checkpoint related job type, let it pass
+		'			Return
+		'	End Select
+		'	UserName = JobInstance.InstancePropertyString(PropertyNameOwner)
+		'	InstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
+		'	RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {.JobInstanceID = InstanceID, .JobType = JobType, .JobTypeName = CheckpointAction, .Session = Session, .UserName = UserName})
+		'End Using
+		'If IsCompleted Then
+		'	RaiseEvent CheckpointJobCompleted(Me, New CheckpointActionCompletedEventArgs With {
+		'		.Session = Session,
+		'		.JobInstanceID = InstanceID,
+		'		.JobType = JobType,
+		'		.JobTypeName = CheckpointAction,
+		'		.UserName = UserName,
+		'		.CompletionCode = CompletionCode,
+		'		.CompletionStatus = CompletionStatus})
+		'Else
+		'	RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {
+		'		.Session = Session,
+		'		.JobInstanceID = InstanceID,
+		'		.JobType = JobType,
+		'		.JobTypeName = CheckpointAction,
+		'		.UserName = UserName})
+		'End If
+	End Sub
+
+	Private Sub SubscriberError(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles JobSubscriber.ErrorOccurred
+		RaiseEvent CheckpointWatcherErrorOccurred(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = e.ErrorInstance})
 	End Sub
 
 #Region "IDisposable Support"

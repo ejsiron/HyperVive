@@ -14,25 +14,6 @@
 
 	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
 	Public Const CimQueryTemplateVirtualMachine As String = "SELECT * FROM Msvm_ComputerSystem {0}"
-
-	Public Enum JobStates As UShort
-		[New] = 2
-		Starting = 3
-		Running = 4
-		ShuttingDown = 6
-		Completed = 7
-		Terminated = 8
-		Killed = 9
-		Exception = 10
-		Service = 11
-	End Enum
-
-	Public Enum VirtualizationJobTypes As UShort
-		NewSnapshot = 70
-		ApplySnapshot = 71
-		DeleteSnapshot = 72
-		ClearSnapshotState = 73
-	End Enum
 #End Region 'Cim Globals
 
 #Region "Virtualization Globals"
