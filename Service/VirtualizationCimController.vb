@@ -65,7 +65,7 @@ Namespace CIMitar.Virtualization
 
 		Public Property InstanceID As String
 
-		Public Async Function StartAsync(ByVal JobInstanceID As String) As Task(Of CimInstance)
+		Public Shared Async Function WatchAsync(ByVal Session As CimSession, ByVal JobInstanceID As String) As Task(Of CimInstance)
 			Dim Job As CimInstance = Nothing
 			Using JobWatcher As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
 				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)
@@ -93,7 +93,7 @@ Namespace CIMitar.Virtualization
 
 		Private Const RecheckDelay As Integer = 250
 
-		Private Function JobIsRunning(ByRef JobInstance As CimInstance) As Boolean
+		Private Shared Function JobIsRunning(ByRef JobInstance As CimInstance) As Boolean
 			Dim JobState As JobStates = CType(JobInstance.InstancePropertyUInt16(PropertyNameJobState), JobStates)
 			Return JobState = JobStates.Running OrElse JobState = JobStates.[New] OrElse JobState = JobStates.Starting
 		End Function

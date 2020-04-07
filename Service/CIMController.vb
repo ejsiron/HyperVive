@@ -549,7 +549,10 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public MustOverride Function StartAsync() As Task(Of ReturnType)
+		Public Overridable Function StartAsync() As Task(Of ReturnType)
+			StartSubscriber()
+			Return CimCompletionTaskSource.Task
+		End Function
 
 		Protected Overrides Sub CancellationCallback()
 			CimCompletionTaskSource?.TrySetCanceled()
@@ -613,11 +616,6 @@ Namespace CIMitar
 		Protected Overrides Sub ReportCompletion()
 			CimCompletionTaskSource?.TrySetResult(Instance)
 		End Sub
-
-		Public Overrides Function StartAsync() As Task(Of CimInstance)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.GetInstanceAsync(Instance.CimSystemProperties.Namespace, Instance)
@@ -688,11 +686,6 @@ Namespace CIMitar
 			Me.ClassName = ClassName
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions)
 		End Function
@@ -721,13 +714,24 @@ Namespace CIMitar
 			Me.QueryText = QueryText
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
+		End Function
+	End Class
+
+	Public Class AsyncAssociatedInstancesController
+		Inherits CimAsyncInstancesController
+
+		Public Property SourceInstance As CimInstance
+		Public Property ResultClass As String = String.Empty
+		Public Property AssociationClassName As String = String.Empty
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
+			Return Session.EnumerateAssociatedInstancesAsync([Namespace], SourceInstance, AssociationClassName, ResultClass, Nothing, Nothing, AsyncOptions)
 		End Function
 	End Class
 
@@ -816,11 +820,6 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
 			Return Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions)
 		End Function
@@ -846,11 +845,6 @@ Namespace CIMitar
 		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
 		End Sub
-
-		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
 			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters, AsyncOptions)
@@ -928,7 +922,7 @@ Namespace CIMitar
 	Public MustInherit Class InstanceIndicationController
 		Inherits CimSubscriptionController
 
-		Public Property WatchCategory As Category = Category.CIM
+		Public Property WatchCategory As Category = Category.WMI
 		Public Property WatchedClassName As String = ""
 		Public Property QueryInterval As UInteger = 1
 		Public Property WatchType As IndicationType
@@ -940,7 +934,7 @@ Namespace CIMitar
 			Me.WatchType = WatchType
 		End Sub
 
-		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchCategory As Category = Category.CIM) As InstanceIndicationController
+		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchCategory As Category = Category.WMI) As InstanceIndicationController
 			Select Case WatchType
 				Case IndicationType.Creation
 					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, WatchCategory)
@@ -971,7 +965,7 @@ Namespace CIMitar
 	Public Class InstanceCreationController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.CIM)
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
 			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchCategory)
 		End Sub
 	End Class
@@ -979,7 +973,7 @@ Namespace CIMitar
 	Public Class InstanceModificationController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.CIM)
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
 			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchCategory)
 		End Sub
 	End Class
@@ -987,7 +981,7 @@ Namespace CIMitar
 	Public Class InstanceDeletionController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.CIM)
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
 			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchCategory)
 		End Sub
 	End Class
