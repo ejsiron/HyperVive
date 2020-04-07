@@ -1,6 +1,6 @@
 ﻿Module GlobalConstants
 #Region "Cim Globals"
-
+	Public Const Unknown As String = "Unknown"
 	Public Const CimNamespaceRootDefault As String = "root/DEFAULT"
 
 	Public Const CimClassNameSyntheticAdapterSettingData As String = "Msvm_SyntheticEthernetPortSettingData"
@@ -13,7 +13,6 @@
 	Public Const CimParameterNameJob As String = "Job"
 
 	Public Const CimQueryTemplateRegistryValueChange As String = "SELECT * FROM RegistryValueChangeEvent WHERE HIVE='{0}' AND KeyPath='{1}' AND ValueName='{2}'"
-	Public Const CimQueryTemplateVirtualMachine As String = "SELECT * FROM Msvm_ComputerSystem {0}"
 #End Region 'Cim Globals
 
 #Region "Virtualization Globals"

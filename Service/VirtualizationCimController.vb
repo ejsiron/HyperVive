@@ -6,6 +6,7 @@ Namespace CIMitar.Virtualization
 	Public Module Strings
 		Public Const NamespaceVirtualization As String = "root/virtualization/v2"
 		Public Const ClassNameVirtualizationJob As String = "Msvm_ConcreteJob"
+		Public Const ClassNameVirtualMachine As String = "Msvm_ComputerSystem"
 		Public Const PropertyNameInstanceID As String = "InstanceID"
 		Public Const PropertyNameJobState As String = "JobState"
 		Public Const PropertyNameJobStatus As String = "JobStatus"
@@ -16,6 +17,8 @@ Namespace CIMitar.Virtualization
 		Public Const PropertyNameEnabledState As String = "EnabledState"
 		Public Const PropertyNameElementName As String = "ElementName"
 		Public Const PropertyNameHealthState As String = "HealthState"
+
+		Public ReadOnly CimQueryTemplateVirtualMachine As String = String.Format("SELECT * FROM {0} {{0}}", ClassNameVirtualMachine)
 
 		Public Const QueryTemplateMsvmConcreteJobById As String = "SELECT * FROM Msvm_ConcreteJob WHERE InstanceID='{0}'"
 	End Module
@@ -82,12 +85,11 @@ Namespace CIMitar.Virtualization
 			End Using
 		End Function
 
-		Public Sub Start(ByVal JobInstanceID As String)
+		Public Sub Start()
 			JobSubscriber?.Cancel()
 			JobSubscriber?.Dispose()
-			InstanceID = JobInstanceID
 			JobSubscriber = New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
-				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)}
+				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, InstanceID)}
 			JobSubscriber.StartAsync.ContinueWith(AddressOf WatcherCallback)
 		End Sub
 

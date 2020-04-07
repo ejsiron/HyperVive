@@ -12,6 +12,8 @@ Public Class CheckpointJobWatcher
 		Public Property JobType As UShort
 		Public Property JobTypeName As String
 		Public Property UserName As String
+		Public Property VMID As String
+		Public Property VMName As String
 	End Class
 
 	Public Class CheckpointActionCompletedEventArgs
@@ -49,54 +51,54 @@ Public Class CheckpointJobWatcher
 	Private Const UnexpectedJobClassIntercepted As String = "Checkpoint watcher received unexpected event"
 
 	Private Sub JobHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles JobSubscriber.EventReceived
-		Task.Run(Sub() ProcessJob(e.SubscribedEvent.GetSourceInstance.Clone))
+		Task.Run(Sub() ProcessJob(e.Session, e.SubscribedEvent.GetSourceInstance.Clone))
 		e.Dispose()
 	End Sub
 
-	Private Sub ProcessJob(ByRef JobInstance As CimInstance)
-		Dim CheckpointAction As String = String.Empty
-		Dim UserName As String
-		Dim InstanceID As String
-		Dim JobType As UShort = 0US
-		Dim IsCompleted As Boolean = False
-		Dim CompletionCode As UShort = 0US
-		Dim CompletionStatus As String = String.Empty
+	Private Sub ProcessJob(ByVal Session As CimSession, ByRef JobInstance As CimInstance)
+		Dim Report As New CheckpointActionCompletedEventArgs With {.Session = Session}
 		Using JobInstance
-			JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
-			Select Case JobType
+			Report.JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
+			Select Case Report.JobType
 				Case VirtualizationJobTypes.ApplySnapshot
-					CheckpointAction = ApplySnapshotAction
+					Report.JobTypeName = ApplySnapshotAction
 				Case VirtualizationJobTypes.ClearSnapshotState
-					CheckpointAction = ClearSnapshotStateAction
+					Report.JobTypeName = ClearSnapshotStateAction
 				Case VirtualizationJobTypes.DeleteSnapshot
-					CheckpointAction = DeleteSnapshotAction
+					Report.JobTypeName = DeleteSnapshotAction
 				Case VirtualizationJobTypes.NewSnapshot
-					CheckpointAction = NewSnapshotAction
+					Report.JobTypeName = NewSnapshotAction
 				Case Else
 					' some non-checkpoint related job type, let it pass
 					Return
 			End Select
-			UserName = JobInstance.InstancePropertyString(PropertyNameOwner)
-			InstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
-			RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {.JobInstanceID = InstanceID, .JobType = JobType, .JobTypeName = CheckpointAction, .Session = Session, .UserName = UserName})
+			Report.UserName = JobInstance.InstancePropertyString(PropertyNameOwner)
+			Report.JobInstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
+			Using AssociatedVMController As New AsyncAssociatedInstancesController(Session, NamespaceVirtualization) With {.SourceInstance = JobInstance, .ResultClass = ClassNameVirtualMachine}
+				Using GetAssociatedVM As Task(Of CimInstanceList) = AssociatedVMController.StartAsync
+					GetAssociatedVM.RunSynchronously()
+					Using VMInstances As CimInstanceList = GetAssociatedVM.Result
+						If VMInstances IsNot Nothing AndAlso VMInstances.Count > 0 Then
+							With VMInstances.First
+								Report.VMID = .InstancePropertyString(PropertyNameName)
+								Report.VMName = .InstancePropertyString(PropertyNameElementName)
+							End With
+						End If
+					End Using
+				End Using
+			End Using
+			RaiseEvent CheckpointJobStarted(Me, Report)
+			Using CheckpointCompletionWatcher As Task(Of CimInstance) = VirtualizationJobCompletionController.WatchAsync(Session, Report.JobInstanceID)
+				CheckpointCompletionWatcher.RunSynchronously()
+				Using CompletedInstance As CimInstance = CheckpointCompletionWatcher.Result
+					If CompletedInstance IsNot Nothing Then
+						Report.CompletionCode = CompletedInstance.InstancePropertyUInt16(PropertyNameErrorCode)
+						Report.CompletionStatus = CompletedInstance.InstancePropertyString(PropertyNameJobStatus)
+					End If
+				End Using
+			End Using
+			RaiseEvent CheckpointJobCompleted(Me, Report)
 		End Using
-		If IsCompleted Then
-			RaiseEvent CheckpointJobCompleted(Me, New CheckpointActionCompletedEventArgs With {
-				.Session = Session,
-				.JobInstanceID = InstanceID,
-				.JobType = JobType,
-				.JobTypeName = CheckpointAction,
-				.UserName = UserName,
-				.CompletionCode = CompletionCode,
-				.CompletionStatus = CompletionStatus})
-		Else
-			RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {
-				.Session = Session,
-				.JobInstanceID = InstanceID,
-				.JobType = JobType,
-				.JobTypeName = CheckpointAction,
-				.UserName = UserName})
-		End If
 	End Sub
 
 	Private Sub SubscriberError(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles JobSubscriber.ErrorOccurred
