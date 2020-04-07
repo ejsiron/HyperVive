@@ -80,6 +80,7 @@ Public Class CheckpointJobWatcher
 			InstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
 			RaiseEvent CheckpointJobStarted(Me, New CheckpointActionEventArgs With {.JobInstanceID = InstanceID, .JobType = JobType, .JobTypeName = CheckpointAction, .Session = Session, .UserName = UserName})
 		End Using
+
 		If IsCompleted Then
 			RaiseEvent CheckpointJobCompleted(Me, New CheckpointActionCompletedEventArgs With {
 				.Session = Session,
