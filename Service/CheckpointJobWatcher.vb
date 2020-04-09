@@ -2,9 +2,7 @@
 Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
-Public Class CheckpointJobWatcher
-	Implements IDisposable
-
+Public Module CustomCheckpointActionEvents
 	Public Class CheckpointActionEventArgs
 		Inherits CimEventArgs
 
@@ -22,6 +20,11 @@ Public Class CheckpointJobWatcher
 		Public Property CompletionCode As UShort
 		Public Property CompletionStatus As String
 	End Class
+End Module
+
+Public Class CheckpointJobWatcher
+	Implements IDisposable
+
 
 	Public Event CheckpointJobStarted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs)
 	Public Event CheckpointJobCompleted(ByVal sender As Object, ByVal e As CheckpointActionCompletedEventArgs)
@@ -51,8 +54,10 @@ Public Class CheckpointJobWatcher
 	Private Const UnexpectedJobClassIntercepted As String = "Checkpoint watcher received unexpected event"
 
 	Private Sub JobHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles JobSubscriber.EventReceived
-		Task.Run(Sub() ProcessJob(e.Session, e.SubscribedEvent.GetSourceInstance.Clone))
+		Dim Session As CimSession = e.Session
+		Dim JobInstance As CimInstance = e.SubscribedEvent.GetSourceInstance.Clone
 		e.Dispose()
+		Task.Run(Sub() ProcessJob(Session, JobInstance))
 	End Sub
 
 	Private Sub ProcessJob(ByVal Session As CimSession, ByRef JobInstance As CimInstance)
@@ -76,7 +81,7 @@ Public Class CheckpointJobWatcher
 			Report.JobInstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
 			Using AssociatedVMController As New AsyncAssociatedInstancesController(Session, NamespaceVirtualization) With {.SourceInstance = JobInstance, .ResultClass = ClassNameVirtualMachine}
 				Using GetAssociatedVM As Task(Of CimInstanceList) = AssociatedVMController.StartAsync
-					GetAssociatedVM.RunSynchronously()
+					GetAssociatedVM.Wait()
 					Using VMInstances As CimInstanceList = GetAssociatedVM.Result
 						If VMInstances IsNot Nothing AndAlso VMInstances.Count > 0 Then
 							With VMInstances.First
@@ -89,7 +94,7 @@ Public Class CheckpointJobWatcher
 			End Using
 			RaiseEvent CheckpointJobStarted(Me, Report)
 			Using CheckpointCompletionWatcher As Task(Of CimInstance) = VirtualizationJobCompletionController.WatchAsync(Session, Report.JobInstanceID)
-				CheckpointCompletionWatcher.RunSynchronously()
+				CheckpointCompletionWatcher.Wait()
 				Using CompletedInstance As CimInstance = CheckpointCompletionWatcher.Result
 					If CompletedInstance IsNot Nothing Then
 						Report.CompletionCode = CompletedInstance.InstancePropertyUInt16(PropertyNameErrorCode)

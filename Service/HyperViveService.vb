@@ -50,8 +50,9 @@ Result code: {5}
 Result message: {6}"
 	Private Const SucceededMessage As String = "succeeded"
 	Private Const FailedMessage As String = "failed"
-	Private Const CheckpointActionTemplate As String = "Checkpoint action ""{0}"" ({1}) initiated by {2}
-Job instance ID: {3}"
+	Private Const CheckpointActionTemplate As String = "Checkpoint action ""{0}"" initiated by {1} for VM {2}
+VM ID: {3}
+Job instance ID: {4}"
 	Private Const CheckpointActionCompletedTemplate As String = "
 Result: {0} ({1})"
 
@@ -70,10 +71,10 @@ Result: {0} ({1})"
 			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = ServiceRegistryPath, .ValueName = "DebugMode"}
 			UpdateDebugMode(Nothing, Nothing)
 			DebugModeSettingReader.Start()
-			'			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
-			'			VMStarter = New VMStartController(LocalCimSession)
-			'			WOLListener = New WakeOnLanListener
-			'			WOLListener.Start()
+			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
+			VMStarter = New VMStartController(LocalCimSession)
+			WOLListener = New WakeOnLanListener
+			WOLListener.Start()
 			CheckpointWatcher = New CheckpointJobWatcher(LocalCimSession)
 			CheckpointWatcher.Start()
 		Else
@@ -140,13 +141,14 @@ Result: {0} ({1})"
 		End With
 	End Sub
 
-	Private Sub WriteCheckpointActionStarted(ByVal sender As Object, ByVal e As CheckpointJobWatcher.CheckpointActionEventArgs) Handles CheckpointWatcher.CheckpointJobStarted
-		EventLog.WriteEntry(String.Format(CheckpointActionTemplate, e.JobTypeName, e.JobType, e.UserName, e.JobInstanceID))
-	End Sub
-
-	Private Sub WriteCheckpointActionCompleted(ByVal sender As Object, ByVal e As CheckpointJobWatcher.CheckpointActionCompletedEventArgs) Handles CheckpointWatcher.CheckpointJobCompleted
-		EventLog.WriteEntry(String.Format(CheckpointActionTemplate, e.JobTypeName, e.JobType, e.UserName, e.JobInstanceID) +
-			String.Format(CheckpointActionCompletedTemplate, e.CompletionStatus, e.CompletionCode))
+	Private Sub WriteCheckpointActionStarted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs) Handles CheckpointWatcher.CheckpointJobStarted, CheckpointWatcher.CheckpointJobCompleted
+		Dim Message As String = String.Format(CheckpointActionTemplate, e.JobTypeName, e.UserName, e.VMName, e.VMID, e.JobInstanceID)
+		If TypeOf e Is CheckpointActionCompletedEventArgs Then
+			With CType(e, CheckpointActionCompletedEventArgs)
+				Message += String.Format(CheckpointActionCompletedTemplate, .CompletionStatus, .CompletionCode)
+			End With
+		End If
+		EventLog.WriteEntry(Message)
 	End Sub
 
 	Private Sub Kill(ByVal ExitCode As Integer)
