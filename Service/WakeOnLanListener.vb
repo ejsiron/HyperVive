@@ -49,7 +49,7 @@ Public Class WakeOnLanListener
 				RaiseEvent OperationCanceled(Me, New EventArgs)
 				Return
 			Catch ex As Exception
-				RaiseEvent ReceiverError(Me, New ModuleExceptionEventArgs With {.[Error] = ex, .ModuleName = ModuleName})
+				RaiseEvent ReceiverError(Me, New ModuleExceptionEventArgs With {.[Error] = ex, .ModuleName = ModuleName, .EventId = EventIdErrorWOLReceiver})
 				Continue While
 			End Try
 			ReceivedMac = ExtractMACFromMagicPacket(ReceivedData.Buffer)
@@ -103,7 +103,7 @@ Public Class WakeOnLanListener
 		For InitialMacPosition As Integer = 6 To 11 ' starting one past the initial 6 bytes, looking at next 6 bytes
 			For MirroredMacOffset As Integer = 1 To 15 ' verify that the same char appears 15 more times, in 6 byte jumps
 				If DataBuffer(InitialMacPosition) <> DataBuffer(InitialMacPosition + (6 * MirroredMacOffset)) Then
-					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(InvalidPacketFormat)))
+					RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(InvalidPacketFormat), EventIdDebugInvalidMagicPacketFormat))
 					Return String.Empty
 				End If
 			Next
@@ -121,7 +121,7 @@ Public Class WakeOnLanListener
 				Return
 			End If
 
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(NewPacketTemplate, MAC)))
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(NewPacketTemplate, MAC), EventIdDebugMagicPacketReceived))
 
 			RaiseEvent MagicPacketReceived(Me, New MagicPacketReceivedEventArgs With {.MacAddress = MAC, .SenderIP = SenderIP})
 
@@ -135,7 +135,7 @@ Public Class WakeOnLanListener
 						SyncLock ListLock
 							RecentMACs?.Remove(MAC)
 						End SyncLock
-						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(ExclusionEndedTemplate, MAC)))
+						RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(ExclusionEndedTemplate, MAC), EventIdDebugEndingMagicPacketExclusionPeriod))
 					End Sub)
 	End Sub
 

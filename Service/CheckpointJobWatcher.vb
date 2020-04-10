@@ -64,6 +64,7 @@ Public Class CheckpointJobWatcher
 		Dim Report As New CheckpointActionCompletedEventArgs With {.Session = Session}
 		Using JobInstance
 			Report.JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format("Virtualization job type {0} created", Report.JobType), EventIdDebugVirtualizationJobReceived))
 			Select Case Report.JobType
 				Case VirtualizationJobTypes.ApplySnapshot
 					Report.JobTypeName = ApplySnapshotAction

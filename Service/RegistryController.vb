@@ -122,15 +122,15 @@ Public Class RegistryController
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
 			Catch ioex As IO.IOException
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(MissingRegistryKVPTemplate, ValueName, KeyPath, _Value)))
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(MissingRegistryKVPTemplate, ValueName, KeyPath, _Value), EventIdDebugRegistryKVPNotFound))
 			Catch ex As Exception
-				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex})
+				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex, .EventId = EventIdErrorRegistryAccess})
 			Finally
 				TargetKey?.Close()
 				TargetKey?.Dispose()
 			End Try
 		Else
-			RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format("Could not open registry at {0}", KeyPath))})
+			RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format("Could not open registry at {0}", KeyPath)), .EventId = EventIdErrorRegistryKeyOpen})
 		End If
 	End Sub
 

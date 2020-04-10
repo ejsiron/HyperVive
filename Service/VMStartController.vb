@@ -75,12 +75,12 @@ Public Class VMStartController
 	''' <param name="sender">The <see cref="VMStartController"/> reporting the message</param>
 	''' <param name="e">A <see cref="DebugMessageEventArgs"/> with message details</param>
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
-	''' <summary>
-	''' Reports processing errors in a VM Start Controller
-	''' </summary>
-	''' <param name="sender">The <see cref="VMStartController"/> instance reporting the problem</param>
-	''' <param name="e">A <see cref="ModuleExceptionEventArgs"/> with </param>
-	Public Event StarterError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
+	'''' <summary>
+	'''' Reports processing errors in a VM Start Controller
+	'''' </summary>
+	'''' <param name="sender">The <see cref="VMStartController"/> instance reporting the problem</param>
+	'''' <param name="e">A <see cref="ModuleExceptionEventArgs"/> with </param>
+	'Public Event StarterError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 
 	''' <summary>
 	''' Creates a new VM Start Controller
@@ -124,7 +124,7 @@ Public Class VMStartController
 									If ResultCode = VirtualizationMethodErrors.JobStarted Then
 										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
 										JobId = JobReference.InstancePropertyString(PropertyNameInstanceID)
-										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID)))
+										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID), EventIdDebugInitiatedVMStart))
 										Job = Await VirtualizationJobCompletionController.WatchAsync(Session, JobId)
 									End If
 								End Using

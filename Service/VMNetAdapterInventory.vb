@@ -64,7 +64,7 @@ Public Class VMNetAdapterInventory
 				End Using
 			End Using
 		Next
-		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(EnumeratedAdaptersTemplate, CurrentAdapters.Count)))
+		RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(EnumeratedAdaptersTemplate, CurrentAdapters.Count), EventIdEnumeratedVirtualAdapters))
 
 		SyntheticAdapterSettingsCreateSubscriber.Start()
 		SyntheticAdapterSettingsChangeSubscriber.Start()
@@ -119,8 +119,10 @@ Public Class VMNetAdapterInventory
 		Try
 			Return InstanceID.Substring(InstanceID.IndexOf(":") + 1, 36) ' start 1 past the ":" char, then consume the length of a GUID plus hyphens
 		Catch ex As Exception
-			RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName,
-				.[Error] = New Exception(String.Format(InvalidAdapterTemplate, InstanceID))})
+			RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {
+				.ModuleName = ModuleName,
+				.[Error] = New Exception(String.Format(InvalidAdapterTemplate, InstanceID)),
+				.EventId = EventIdErrorInvalidVirtualAdapter})
 			Return Guid.Empty.ToString
 		End Try
 	End Function
@@ -146,7 +148,7 @@ Public Class VMNetAdapterInventory
 		Dim NewAdapter As AdapterEntry = GetAdapterEntryFromInstance(e.SubscribedEvent.GetSourceInstance)
 		If Not String.IsNullOrEmpty(NewAdapter.MAC) Then
 			AddAdapter(NewAdapter)
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(RegisteredNewAdapterTemplate, NewAdapter.MAC)))
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(RegisteredNewAdapterTemplate, NewAdapter.MAC), EventIdDebugNewVirtualAdapter))
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
@@ -165,10 +167,10 @@ Public Class VMNetAdapterInventory
 										  End Sub)
 			End SyncLock
 			If AdapterFound Then
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(UpdatedAdapterTemplate, ChangedAdapter.MAC)))
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(UpdatedAdapterTemplate, ChangedAdapter.MAC), EventIdDebugChangedVirtualAdapter))
 			Else
 				AddAdapter(ChangedAdapter)
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(AddedFromUpdateTemplate, ChangedAdapter.MAC)))
+				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(AddedFromUpdateTemplate, ChangedAdapter.MAC), EventIdDebugNewVirtualAdapterFromUpdate))
 			End If
 		End If
 		e.SubscribedEvent.Dispose()
@@ -181,7 +183,7 @@ Public Class VMNetAdapterInventory
 			SyncLock AdaptersLock
 				RemovedAdapterCount = CurrentAdapters.RemoveAll(Function(ByVal SearchAdapter As AdapterEntry) SearchAdapter.InstanceID = ChangedAdapter.InstanceID)
 			End SyncLock
-			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(DeletedAdapterTemplate, RemovedAdapterCount)))
+			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(DeletedAdapterTemplate, RemovedAdapterCount), EventIdDebugDeletedVirtualAdapter))
 		End If
 		e.SubscribedEvent.Dispose()
 	End Sub
@@ -201,7 +203,10 @@ Public Class VMNetAdapterInventory
 		ElseIf sender Is EmulatedAdapterSettingsDeleteSubscriber Then
 			SubscriberType = EmulatedDelete
 		End If
-		RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format(SubscriberErrorTemplate, SubscriberType, e.ErrorInstance.Message))})
+		RaiseEvent InventoryError(Me, New ModuleExceptionEventArgs With {
+			.ModuleName = ModuleName,
+			.[Error] = New Exception(String.Format(SubscriberErrorTemplate, SubscriberType, e.ErrorInstance.Message)),
+			.EventId = EventIdErrorVirtualAdapterSubscriber})
 		e.ErrorInstance.Dispose()
 	End Sub
 
