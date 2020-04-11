@@ -43,10 +43,10 @@ Public Class HyperViveService
 	Private Const UnexpectedAppErrorTemplate As String = "Halting due to unexpected error ""{0}"" of type {1}"
 	Private Const UnexpectedModuleErrorTemplate As String = "Unexpected error of type ""{0}"" in module ""{1}"": {2}"
 	Private Const WolReceivedTemplate As String = "Received WOL frame from {0} for {1}"
-	Private Const StartResultTemplate As String = "VM start operation {0}.
+	Private Const StartResultTemplate As String = "VM wake-on-LAN start operation {0}.
 VM name: {1}
-ID: {2}
-MAC address: {3}
+VM ID: {2}
+VM MAC address: {3}
 Request source: {4}
 Result code: {5}
 Result message: {6}"
@@ -148,14 +148,12 @@ Result: {0} ({1})"
 		Dim Message As String = String.Format(CheckpointActionTemplate, e.JobTypeName, e.UserName, e.VMName, e.VMID, e.JobInstanceID)
 		Dim EventType As EventLogEntryType = EventLogEntryType.Information
 		Dim EventId As Integer = EventIdCheckpointActionStarted
-		If TypeOf e Is CheckpointActionCompletedEventArgs Then
-			With CType(e, CheckpointActionCompletedEventArgs)
-				Message += String.Format(CheckpointActionCompletedTemplate, .CompletionStatus, .CompletionCode)
-				EventId = CInt(IIf(.CompletionCode = VirtualizationMethodErrors.NoError, EventIdCheckpointActionSucceeded, EventIdCheckpointActionFailed))
-				If .CompletionCode <> VirtualizationMethodErrors.NoError Then
-					EventType = EventLogEntryType.Error
-				End If
-			End With
+		If e.IsCompleted Then
+			Message += String.Format(CheckpointActionCompletedTemplate, e.CompletionStatus, e.CompletionCode)
+			EventId = CInt(IIf(e.CompletionCode = VirtualizationMethodErrors.NoError, EventIdCheckpointActionSucceeded, EventIdCheckpointActionFailed))
+			If e.CompletionCode <> VirtualizationMethodErrors.NoError Then
+				EventType = EventLogEntryType.Error
+			End If
 		End If
 		EventLog.WriteEntry(Message, EventType, EventId)
 	End Sub

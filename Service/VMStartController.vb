@@ -43,7 +43,11 @@ Public Module VMStartControllerEvents
 		''' Indicates procedure success
 		''' </summary>
 		''' <returns><see cref="Boolean"/></returns>
-		Public ReadOnly Property Success As Boolean = ResultCode = 0US
+		Public ReadOnly Property Success As Boolean
+			Get
+				Return ResultCode = 0US
+			End Get
+		End Property
 		''' <summary>
 		''' Numerical code for the result
 		''' </summary>

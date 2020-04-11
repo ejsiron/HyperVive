@@ -3,22 +3,18 @@ Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
 Public Module CustomCheckpointActionEvents
-	Public Class CheckpointActionEventArgs
-		Inherits CimEventArgs
 
+	Public Class CheckpointActionEventArgs
+		Public Property Session As CimSession
 		Public Property JobInstanceID As String
 		Public Property JobType As UShort
 		Public Property JobTypeName As String
 		Public Property UserName As String
 		Public Property VMID As String
 		Public Property VMName As String
-	End Class
-
-	Public Class CheckpointActionCompletedEventArgs
-		Inherits CheckpointActionEventArgs
-
-		Public Property CompletionCode As UShort
-		Public Property CompletionStatus As String
+		Public Property IsCompleted As Boolean = False
+		Public Property CompletionCode As UShort = 0US
+		Public Property CompletionStatus As String = String.Empty
 	End Class
 End Module
 
@@ -27,7 +23,7 @@ Public Class CheckpointJobWatcher
 
 
 	Public Event CheckpointJobStarted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs)
-	Public Event CheckpointJobCompleted(ByVal sender As Object, ByVal e As CheckpointActionCompletedEventArgs)
+	Public Event CheckpointJobCompleted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 	Public Event CheckpointWatcherErrorOccurred(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 
@@ -61,7 +57,7 @@ Public Class CheckpointJobWatcher
 	End Sub
 
 	Private Sub ProcessJob(ByVal Session As CimSession, ByRef JobInstance As CimInstance)
-		Dim Report As New CheckpointActionCompletedEventArgs With {.Session = Session}
+		Dim Report As New CheckpointActionEventArgs With {.Session = Session}
 		Using JobInstance
 			Report.JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
 			RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format("Virtualization job type {0} created", Report.JobType), EventIdDebugVirtualizationJobReceived))
@@ -96,10 +92,14 @@ Public Class CheckpointJobWatcher
 			RaiseEvent CheckpointJobStarted(Me, Report)
 			Using CheckpointCompletionWatcher As Task(Of CimInstance) = VirtualizationJobCompletionController.WatchAsync(Session, Report.JobInstanceID)
 				CheckpointCompletionWatcher.Wait()
+				Report.IsCompleted = True
 				Using CompletedInstance As CimInstance = CheckpointCompletionWatcher.Result
 					If CompletedInstance IsNot Nothing Then
 						Report.CompletionCode = CompletedInstance.InstancePropertyUInt16(PropertyNameErrorCode)
 						Report.CompletionStatus = CompletedInstance.InstancePropertyString(PropertyNameJobStatus)
+					Else
+						Report.CompletionCode = USUnknownError
+						Report.CompletionStatus = StrUnknownError
 					End If
 				End Using
 			End Using
