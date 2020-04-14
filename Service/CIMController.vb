@@ -899,9 +899,9 @@ Namespace CIMitar
 	End Class
 
 	''' <summary>
-	''' Selector for WMI or CIM objects when both possibilities exist. Ex: __InstanceCreationEvent or CIM_InstCreation
+	''' Selector for WMI or CIM objects when both possibilities exist. Ex: __InstanceCreationEvent vs. CIM_InstCreation
 	''' </summary>
-	Public Enum Category
+	Public Enum Hierarchy
 		''' <summary>
 		''' Use for objects such as CIM_InstCreation, CIM_InstModification, and CIM_InstDeletion
 		''' </summary>
@@ -913,35 +913,50 @@ Namespace CIMitar
 		WMI
 	End Enum
 
+	''' <summary>
+	''' Specifies the CIM or WMI indication class category.
+	''' </summary>
 	Public Enum IndicationType
 		Creation
 		Modification
 		Deletion
 	End Enum
 
+	''' <summary>
+	''' Specialized CIM subscriber for CIM or WMI indication objects.
+	''' </summary>
 	Public MustInherit Class InstanceIndicationController
 		Inherits CimSubscriptionController
 
-		Public Property WatchCategory As Category = Category.WMI
+		Public Property WatchHierarchy As Hierarchy = Hierarchy.WMI
 		Public Property WatchedClassName As String = ""
 		Public Property QueryInterval As UInteger = 1
 		Public Property WatchType As IndicationType
 
-		Public Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Category)
+		Public Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Hierarchy)
 			MyBase.New(Session, [Namespace])
 			Me.WatchedClassName = WatchedClassName
-			Me.WatchCategory = WatchCategory
+			Me.WatchHierarchy = WatchCategory
 			Me.WatchType = WatchType
 		End Sub
 
-		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchCategory As Category = Category.WMI) As InstanceIndicationController
+		''' <summary>
+		''' Creates a specialized indication watcher for creation, deletion, or modification events of a particular class based on input.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="WatchType">The type of instance to watch for</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <returns></returns>
+		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI) As InstanceIndicationController
 			Select Case WatchType
 				Case IndicationType.Creation
-					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, WatchCategory)
+					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
 				Case IndicationType.Deletion
-					Return New InstanceDeletionController(Session, [Namespace], WatchedClassName, WatchCategory)
+					Return New InstanceDeletionController(Session, [Namespace], WatchedClassName, WatchHierarchy)
 				Case Else ' modification
-					Return New InstanceModificationController(Session, [Namespace], WatchedClassName, WatchCategory)
+					Return New InstanceModificationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
 			End Select
 		End Function
 
@@ -950,38 +965,71 @@ Namespace CIMitar
 			Dim IndicationClass As String = String.Empty
 			Select Case WatchType
 				Case IndicationType.Creation
-					IndicationClass = IIf(WatchCategory = Category.CIM, CimClassNameInstanceCreation, WmiClassNameInstanceCreation).ToString
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceCreation, WmiClassNameInstanceCreation).ToString
 				Case IndicationType.Deletion
-					IndicationClass = IIf(WatchCategory = Category.CIM, CimClassNameInstanceDeletion, WmiClassNameInstanceDeletion).ToString
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceDeletion, WmiClassNameInstanceDeletion).ToString
 				Case Else   ' modification
-					IndicationClass = IIf(WatchCategory = Category.CIM, CimClassNameInstanceModification, WmiClassNameInstanceModication).ToString
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceModification, WmiClassNameInstanceModication).ToString
 			End Select
-			Dim Selector As String = IIf(WatchCategory = Category.CIM, CimSubscriptionInstanceSelector, WmiSubscriptionInstanceSelector).ToString
+			Dim Selector As String = IIf(WatchHierarchy = Hierarchy.CIM, CimSubscriptionInstanceSelector, WmiSubscriptionInstanceSelector).ToString
 			QueryText = String.Format(QueryTemplateTimedEvent, IndicationClass, QueryInterval, Selector, WatchedClassName)
 			Return MyBase.InvokeOperation()
 		End Function
 	End Class
 
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object creation events.
+	''' </summary>
 	Public Class InstanceCreationController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
-			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchCategory)
+		''' <summary>
+		''' Creates a new CIM or WMI object creation subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchHierarchy)
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object modification events.
+	''' </summary>
 	Public Class InstanceModificationController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
-			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchCategory)
+		''' <summary>
+		''' Creates a new CIM or WMI object modification subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchHierarchy)
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object deletion events.
+	''' </summary>
 	Public Class InstanceDeletionController
 		Inherits InstanceIndicationController
 
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Category = Category.WMI)
+		''' <summary>
+		''' Creates a new CIM or WMI object deletion subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchCategory">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Hierarchy = Hierarchy.WMI)
 			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchCategory)
 		End Sub
 	End Class

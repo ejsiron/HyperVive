@@ -3,30 +3,78 @@ Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
 Public Module CustomCheckpointActionEvents
-
+	''' <summary>
+	''' Raised when a checkpoint action is intercepted
+	''' </summary>
 	Public Class CheckpointActionEventArgs
+		''' <summary>
+		''' The CIM session where the action occurred
+		''' </summary>
+		''' <returns><see cref="CimSession"/></returns>
 		Public Property Session As CimSession
+		''' <summary>
+		''' The instance ID of the Msvm_ConcreteJob that tracked the action, in <see cref="String"/> form.
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property JobInstanceID As String
+		''' <summary>
+		''' The type code for the job. See the official documentation for Msvm_ConcreteJob.
+		''' </summary>
+		''' <returns><see cref="UShort"/></returns>
 		Public Property JobType As UShort
+		''' <summary>
+		''' The type of job in <see cref="String"/> form. Not localized.
+		''' </summary>
+		''' <returns></returns>
 		Public Property JobTypeName As String
+		''' <summary>
+		''' The user name that initiated the job.
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property UserName As String
+		''' <summary>
+		''' The ID of the virtual machine connected to this checkpoint action, in <see cref="String"/> form.
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property VMID As String
+		''' <summary>
+		''' The name of the virtual machine connected to this checkpoint action.
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property VMName As String
+		''' <summary>
+		''' Indicates if the action has completed.
+		''' </summary>
+		''' <returns><see cref="Boolean"/></returns>
 		Public Property IsCompleted As Boolean = False
+		''' <summary>
+		''' Returns the final error code reported by Msvm_ConcreteJob.
+		''' </summary>
+		''' <returns><see cref="UShort"/></returns>
 		Public Property CompletionCode As UShort = 0US
+		''' <summary>
+		''' Returns the final error status reported by the CIM system.
+		''' </summary>
+		''' <returns><see cref="String"/></returns>
 		Public Property CompletionStatus As String = String.Empty
 	End Class
 End Module
 
+''' <summary>
+''' Watches for the creation and completion of checkpoint-related Msvm_ConcreteJob items. Reports actions and results.
+''' </summary>
 Public Class CheckpointJobWatcher
 	Implements IDisposable
-
 
 	Public Event CheckpointJobStarted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs)
 	Public Event CheckpointJobCompleted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs)
 	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 	Public Event CheckpointWatcherErrorOccurred(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
 
+	''' <summary>
+	''' Starts a new checkpoint watcher on the indicated CIM session.
+	''' </summary>
+	''' <param name="Session">The <see cref="CimSession"/> to watch for checkpoint jobs.</param>
 	Public Sub New(ByVal Session As CimSession)
 		Me.Session = Session
 		JobSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, ClassNameVirtualizationJob)
@@ -49,14 +97,24 @@ Public Class CheckpointJobWatcher
 	Private Const NewSnapshotAction As String = "Create"
 	Private Const UnexpectedJobClassIntercepted As String = "Checkpoint watcher received unexpected event"
 
+	''' <summary>
+	''' Handles the creation of new Msvm_ConcreteJob objects.
+	''' </summary>
+	''' <param name="sender"></param>
+	''' <param name="e"></param>
+	''' <remarks>Passes off the job as quickly as possible to avoid holding up the eventing system.</remarks>
 	Private Sub JobHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles JobSubscriber.EventReceived
 		Dim Session As CimSession = e.Session
 		Dim JobInstance As CimInstance = e.SubscribedEvent.GetSourceInstance.Clone
 		e.Dispose()
-		Task.Run(Sub() ProcessJob(Session, JobInstance))
+		Task.Run(Sub() ProcessJob(JobInstance))
 	End Sub
 
-	Private Sub ProcessJob(ByVal Session As CimSession, ByRef JobInstance As CimInstance)
+	''' <summary>
+	''' Receives newly-created Msvm_ConcreteJob items. If the job is checkpoint-related, watches it to completion.
+	''' </summary>
+	''' <param name="JobInstance">The <see cref="CimInstance"/> that represents the Msvm_ConcreteJob to process.</param>
+	Private Sub ProcessJob(ByRef JobInstance As CimInstance)
 		Dim Report As New CheckpointActionEventArgs With {.Session = Session}
 		Using JobInstance
 			Report.JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
@@ -112,7 +170,6 @@ Public Class CheckpointJobWatcher
 	End Sub
 
 #Region "IDisposable Support"
-
 	Private disposedValue As Boolean
 
 	Protected Overridable Sub Dispose(disposing As Boolean)

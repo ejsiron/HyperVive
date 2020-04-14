@@ -54,10 +54,14 @@ Namespace CIMitar.Virtualization
 		Public Class VirtualizationJobCompletedArgs
 			Inherits CimEventArgs
 
-			Public Property InstanceID As CimInstance
+			Public Property JobInstance As CimInstance
 		End Class
 	End Module
 
+	''' <summary>
+	''' Watches Msvm_ConcreteJob objects for completion. Resets itself upon job completion.
+	''' <para>Runs in instance mode (Start()) or ad hoc mode (StartAsync()). In instance mode, always set the InstanceID before starting.</para>
+	''' </summary>
 	Public Class VirtualizationJobCompletionController
 		Public Sub New(ByVal Session As CimSession)
 			Me.Session = Session
@@ -66,8 +70,18 @@ Namespace CIMitar.Virtualization
 		Public Event JobNotFound(ByVal sender As Object, ByVal e As VirtualizationJobNotFoundEventArgs)
 		Public Event JobCompleted(ByVal sender As Object, ByVal e As VirtualizationJobCompletedArgs)
 
+		''' <summary>
+		''' Instance ID of the target Msvm_ConcreteJob, in <see cref="String"/> form.
+		''' </summary>
+		''' <returns>Current job Instance ID in <see cref="String"/> form.</returns>
 		Public Property InstanceID As String
 
+		''' <summary>
+		''' Ad hoc function to watch an Msvm_ConcreteJob asynchronously.
+		''' </summary>
+		''' <param name="Session"><see cref="CimSession"/> that contains the job to watch.</param>
+		''' <param name="JobInstanceID">The <see cref="String"/> form of the target Msvm_ConcreteJob ID.</param>
+		''' <returns></returns>
 		Public Shared Async Function WatchAsync(ByVal Session As CimSession, ByVal JobInstanceID As String) As Task(Of CimInstance)
 			Dim Job As CimInstance = Nothing
 			Using JobWatcher As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
@@ -81,10 +95,13 @@ Namespace CIMitar.Virtualization
 						Job.Refresh(Session)
 					End While
 				End If
-				Return Job.Clone
+				Return Job?.Clone
 			End Using
 		End Function
 
+		''' <summary>
+		''' Starts watching the Msvm_ConcreteJob indicated in InstanceID. Uses events to report completion.
+		''' </summary>
 		Public Sub Start()
 			JobSubscriber?.Cancel()
 			JobSubscriber?.Dispose()
@@ -95,11 +112,20 @@ Namespace CIMitar.Virtualization
 
 		Private Const RecheckDelay As Integer = 250
 
+		''' <summary>
+		''' Checks the JobState of an Msvm_ConcreteJob object to determine if it is still running.
+		''' </summary>
+		''' <param name="JobInstance">A <see cref="CimInstance"/> that represents the Msvm_ConcreteJob object</param>
+		''' <returns>A <see cref="Boolean"/> value that indicates the job running condition.</returns>
 		Private Shared Function JobIsRunning(ByRef JobInstance As CimInstance) As Boolean
 			Dim JobState As JobStates = CType(JobInstance.InstancePropertyUInt16(PropertyNameJobState), JobStates)
 			Return JobState = JobStates.Running OrElse JobState = JobStates.[New] OrElse JobState = JobStates.Starting
 		End Function
 
+		''' <summary>
+		''' Recursively watches for an Msvm_ConcreteJob to complete.
+		''' </summary>
+		''' <param name="ControllerTask"></param>
 		Private Sub WatcherCallback(ControllerTask As Task(Of CimInstanceList))
 			If ControllerTask.Result.Count > 0 Then
 				If JobIsRunning(ControllerTask.Result.First) Then
@@ -109,7 +135,7 @@ Namespace CIMitar.Virtualization
 				Else
 					RaiseEvent JobCompleted(Me, New VirtualizationJobCompletedArgs With {
 						.Session = Session,
-						.InstanceID = ControllerTask.Result.First.Clone
+						.JobInstance = ControllerTask.Result.First.Clone
 					})
 				End If
 			Else
