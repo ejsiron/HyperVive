@@ -16,6 +16,19 @@ Imports Microsoft.Management.Infrastructure
 Imports System.Threading
 
 Namespace CIMitar
+	Public Module Strings
+		Public Const DefaultNamespace As String = "root/CIMV2"
+		Public Const CimClassNameInstanceCreation As String = "CIM_InstCreation"
+		Public Const WmiClassNameInstanceCreation As String = "__InstanceCreationEvent"
+		Public Const CimClassNameInstanceModification As String = "CIM_InstModification"
+		Public Const WmiClassNameInstanceModication As String = "__InstanceModificationEvent"
+		Public Const CimClassNameInstanceDeletion As String = "CIM_InstDeletion"
+		Public Const WmiClassNameInstanceDeletion As String = "__InstanceDeletionEvent"
+		Public Const CimSubscriptionInstanceSelector As String = "SourceInstance"
+		Public Const WmiSubscriptionInstanceSelector As String = "TargetInstance"
+		Public Const QueryTemplateTimedEvent As String = "SELECT * FROM {0} WITHIN {1} WHERE {2} ISA '{3}'"
+		Public Const PropertyNameName As String = "Name"
+	End Module
 
 	''' <summary>
 	''' Utility extensions for built-in Microsoft.Management.Infrastructure objects
@@ -26,10 +39,10 @@ Namespace CIMitar
 		''' </summary>
 		''' <param name="SubscriptionEvent"></param>
 		''' <returns><see cref="CimInstance"/></returns>
-				 <Runtime.CompilerServices.Extension>
+		<Runtime.CompilerServices.Extension>
 		Public Function GetSourceInstance(ByVal SubscriptionEvent As CimSubscriptionResult) As CimInstance
 			Dim InstancePropertyName As String =
-				IIf(SubscriptionEvent.Instance.CimSystemProperties.ClassName.Substring(0, 3) = "CIM", "SourceInstance", "TargetInstance").ToString
+				IIf(SubscriptionEvent.Instance.CimSystemProperties.ClassName.Substring(0, 3) = "CIM", CimSubscriptionInstanceSelector, WmiSubscriptionInstanceSelector).ToString
 			Return CType((SubscriptionEvent.Instance.CimInstanceProperties(InstancePropertyName)?.Value), CimInstance)
 		End Function
 
@@ -51,7 +64,7 @@ Namespace CIMitar
 		''' <param name="[Class]">The <see cref="CimClass"/> to check.</param>
 		''' <param name="MethodName">The name of the method to check.</param>
 		''' <returns>True if the method is static for the class, False if it requires an instance.</returns>
-						 <Runtime.CompilerServices.Extension>
+		<Runtime.CompilerServices.Extension>
 		Public Function IsMethodStatic(ByVal [Class] As CimClass, ByVal MethodName As String) As Boolean
 			If [Class] IsNot Nothing AndAlso Not String.IsNullOrEmpty(MethodName) Then
 				For Each MethodDeclaration As CimMethodDeclaration In [Class].CimClassMethods
@@ -81,7 +94,7 @@ Namespace CIMitar
 		''' <param name="Property">The <see cref="CimProperty"/> that contains the value to extract</param>
 		''' <returns><see cref="String"/></returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetValueString(ByVal [Property] As CimProperty) As String
+		Public Function [String](ByVal [Property] As CimProperty) As String
 			Dim StringValue As String = [Property]?.Value?.ToString
 			Return IIf(String.IsNullOrEmpty(StringValue), String.Empty, StringValue).ToString
 		End Function
@@ -90,15 +103,58 @@ Namespace CIMitar
 		''' Shortcut method to extract the string value of a CIM instance property
 		''' </summary>
 		''' <param name="Instance"><see cref="CimInstance"/> that owns the property</param>
-		''' <param name="PropertyName">Name of the desired property</param>
+		''' <param name="Name">Name of the desired property</param>
 		''' <returns>The value of the property if present, otherwise an empty string.</returns>
 		<Runtime.CompilerServices.Extension>
-		Public Function GetInstancePropertyValueString(ByVal Instance As CimInstance, ByVal PropertyName As String) As String
-			If Instance Is Nothing Then
-				Return String.Empty
+		Public Function InstancePropertyString(ByVal Instance As CimInstance, ByVal Name As String) As String
+			Return [String](ExtractInstanceProperty(Instance, Name))
+		End Function
+
+		Private Function ExtractValue(Of T)(ByRef [Property] As CimProperty, ByVal ExpectedType As CimType, ByRef DefaultValue As T) As T
+			If [Property] IsNot Nothing AndAlso [Property].Value IsNot Nothing AndAlso [Property].CimType = ExpectedType Then
+				Return CType([Property].Value, T)
 			Else
-				Return GetValueString(Instance.CimInstanceProperties(PropertyName))
+				Return DefaultValue
 			End If
+		End Function
+
+		Private Function ExtractArray(Of T)(ByVal [Property] As CimProperty, ByVal ExpectedType As CimType) As List(Of T)
+			Return ExtractValue([Property], ExpectedType, New T(0) {}).ToList
+		End Function
+
+		''' <summary>
+		''' Extracts the 16-bit unsigned integer value from a CIM instance or system property
+		''' </summary>
+		''' <param name="[Property]">The <see cref="CimProperty"/> that contains the value to extract</param>
+		''' <returns>The <see cref="UShort"/> value if conversion possible, 0 otherwise.</returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function UInt16(ByVal [Property] As CimProperty) As UShort
+			Return ExtractValue([Property], CimType.UInt16, 0US)
+		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function UInt16Array(ByVal [Property] As CimProperty) As List(Of UShort)
+			Return ExtractArray(Of UShort)([Property], CimType.UInt16Array)
+		End Function
+
+		Private Function ExtractInstanceProperty(ByRef Instance As CimInstance, ByVal Name As String) As CimProperty
+			Return Instance.CimInstanceProperties.Where(Function(SearchProperty As CimProperty) SearchProperty.Name = Name).FirstOrDefault
+		End Function
+
+		''' <summary>
+		''' Shortcut method to extract the 16-bit unsigned integer value of a CIM instance property
+		''' </summary>
+		''' <param name="Instance"><see cref="CimInstance"/> that owns the property</param>
+		''' <param name="Name">Name of the desired property</param>
+		''' <returns></returns>
+		<Runtime.CompilerServices.Extension>
+		Public Function InstancePropertyUInt16(ByVal Instance As CimInstance, ByVal Name As String) As UShort
+			Return UInt16(ExtractInstanceProperty(Instance, Name))
+		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function InstancePropertyUInt16Array(ByVal Instance As CimInstance, ByVal Name As String) As List(Of UShort)
+			Return UInt16Array(ExtractInstanceProperty(Instance, Name))
 		End Function
 	End Module
 
@@ -110,12 +166,36 @@ Namespace CIMitar
 			Inherits EventArgs
 			Public Property Session As CimSession
 		End Class
+
 		''' <summary>
 		''' Reports a <see cref="CimException"/> from a CIM operation
 		''' </summary>
 		Public Class CimErrorEventArgs
 			Inherits CimEventArgs
+			Implements IDisposable
+
 			Public Property ErrorInstance As CimException
+
+#Region "CimErrorEventArgs IDisposable Support"
+			Private disposedValue As Boolean
+
+			''' <summary>
+			''' Dispose the event OR its error instance. You do not need to dispose both.
+			''' </summary>
+			''' <param name="disposing"></param>
+			Protected Overridable Sub Dispose(disposing As Boolean)
+				If Not disposedValue Then
+					If disposing Then
+						ErrorInstance?.Dispose()
+					End If
+				End If
+				disposedValue = True
+			End Sub
+
+			Public Sub Dispose() Implements IDisposable.Dispose
+				Dispose(True)
+			End Sub
+#End Region 'CimErrorEventArgs IDisposable
 		End Class
 
 		Public Delegate Sub CimErrorEventHandler(ByVal sender As Object, ByVal e As CimErrorEventArgs)
@@ -125,7 +205,30 @@ Namespace CIMitar
 		''' </summary>
 		Public Class CimInstancesReceivedArgs
 			Inherits CimEventArgs
+			Implements IDisposable
+
 			Public Property Instances As CimInstanceList
+
+#Region "CimInstancesReceivedArgs IDisposable Support"
+			Private disposedValue As Boolean
+
+			''' <summary>
+			''' Dispose the event OR its returned instances. You do not need to do both.
+			''' </summary>
+			''' <param name="disposing"></param>
+			Protected Overridable Sub Dispose(disposing As Boolean)
+				If Not disposedValue Then
+					If disposing Then
+						Instances?.Dispose()
+					End If
+				End If
+				disposedValue = True
+			End Sub
+
+			Public Sub Dispose() Implements IDisposable.Dispose
+				Dispose(True)
+			End Sub
+#End Region
 		End Class
 
 		Public Delegate Sub CimInstancesReceivedHandler(ByVal sender As Object, ByVal e As CimInstancesReceivedArgs)
@@ -145,9 +248,26 @@ Namespace CIMitar
 		''' </summary>
 		Public Class CimSubscribedEventReceivedArgs
 			Inherits CimEventArgs
+			Implements IDisposable
 
 			Public Property SubscribedEvent As CimSubscriptionResult
+
+			Private disposedValue As Boolean
+
+			Protected Overridable Sub Dispose(disposing As Boolean)
+				If Not disposedValue Then
+					If disposing Then
+						SubscribedEvent?.Dispose()
+					End If
+				End If
+				disposedValue = True
+			End Sub
+#Region "CimSubscribedEventReceivedArgs IDisposable Support"
+			Public Sub Dispose() Implements IDisposable.Dispose
+				Dispose(True)
+			End Sub
 		End Class
+#End Region ' CimSubscribedEventReceivedArgs IDisposable
 
 		Public Delegate Sub CimSubscribedEventReceivedHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs)
 
@@ -217,8 +337,6 @@ Namespace CIMitar
 	''' <typeparam name="ReturnType">The type that will return to asynchronous callers.</typeparam>
 	Public MustInherit Class CimControllerBase(Of SubscriberType, ReturnType)
 		Implements IDisposable
-
-		Public Const DefaultNamespace As String = "root/CIMV2"
 
 		''' <summary>
 		''' The CIM namespace that an activity operates in.
@@ -342,7 +460,9 @@ Namespace CIMitar
 		''' <param name="CompleteClean">Used by Dispose to completely tear down the object.</param>
 		''' <remarks>The object is not guaranteed to be usable if CompleteClean is set outside of Dispose()</remarks>
 		Protected Overridable Sub Reset(Optional ByVal CompleteClean As Boolean = False)
+			CimCancellationSource?.Cancel()
 			CimCancellationSource?.Dispose()
+			CimCancellationSource = Nothing
 			Subscriber?.Dispose()
 			Subscriber = Nothing
 			_LastError?.Dispose()
@@ -429,7 +549,10 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public MustOverride Function StartAsync() As Task(Of ReturnType)
+		Public Overridable Function StartAsync() As Task(Of ReturnType)
+			StartSubscriber()
+			Return CimCompletionTaskSource.Task
+		End Function
 
 		Protected Overrides Sub CancellationCallback()
 			CimCompletionTaskSource?.TrySetCanceled()
@@ -494,11 +617,6 @@ Namespace CIMitar
 			CimCompletionTaskSource?.TrySetResult(Instance)
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimInstance)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.GetInstanceAsync(Instance.CimSystemProperties.Namespace, Instance)
 		End Function
@@ -519,7 +637,7 @@ Namespace CIMitar
 		''' <summary>
 		''' Refreshes all instances in <see cref="Instances"/>
 		''' </summary>
-		Public Async Sub RefreshAsync()
+		Public Async Function RefreshAsync() As Task(Of CimInstanceList)
 			If Instances IsNot Nothing AndAlso Instances.Count > 0 Then
 				Dim RefreshController As New CimAsyncRefreshInstanceController(Session)
 				For Each Instance As CimInstance In Instances
@@ -528,7 +646,8 @@ Namespace CIMitar
 					Instance = RefreshController.Instance
 				Next
 			End If
-		End Sub
+			Return Instances
+		End Function
 
 		Protected Overrides Sub ReportResult(Result As CimInstance)
 			Instances.Add(Result)
@@ -567,11 +686,6 @@ Namespace CIMitar
 			Me.ClassName = ClassName
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions)
 		End Function
@@ -600,13 +714,24 @@ Namespace CIMitar
 			Me.QueryText = QueryText
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimInstanceList)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
+		End Function
+	End Class
+
+	Public Class AsyncAssociatedInstancesController
+		Inherits CimAsyncInstancesController
+
+		Public Property SourceInstance As CimInstance
+		Public Property ResultClass As String = String.Empty
+		Public Property AssociationClassName As String = String.Empty
+
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+			MyBase.New(Session, [Namespace])
+		End Sub
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
+			Return Session.EnumerateAssociatedInstancesAsync([Namespace], SourceInstance, AssociationClassName, ResultClass, Nothing, Nothing, AsyncOptions)
 		End Function
 	End Class
 
@@ -695,11 +820,6 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
 			Return Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions)
 		End Function
@@ -726,13 +846,8 @@ Namespace CIMitar
 			MyBase.New(Session, [Namespace])
 		End Sub
 
-		Public Overrides Function StartAsync() As Task(Of CimMethodResult)
-			StartSubscriber()
-			Return CimCompletionTaskSource.Task
-		End Function
-
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
-			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters)
+			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters, AsyncOptions)
 		End Function
 	End Class
 
@@ -749,7 +864,7 @@ Namespace CIMitar
 		''' Complete text of the query that initiates the subscriber
 		''' </summary>
 		''' <returns><see cref="String"/></returns>
-		Public Property QueryText As String
+		Public Overridable Property QueryText As String
 
 		''' <summary>
 		''' Creates a new CIM subscriber
@@ -765,12 +880,13 @@ Namespace CIMitar
 		End Sub
 
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimSubscriptionResult)
-			Return Session.SubscribeAsync([Namespace], QueryLanguage, QueryText)
+			Return Session.SubscribeAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
 		End Function
 
 		Protected Overrides Sub ReportError([Error] As CimException)
 			MyBase.ReportError([Error])
 			RaiseEvent ErrorOccurred(Me, New CimErrorEventArgs With {.Session = Session, .ErrorInstance = [Error]})
+			StartSubscriber()
 		End Sub
 
 		Protected Overrides Sub ReportResult(Result As CimSubscriptionResult)
@@ -782,4 +898,139 @@ Namespace CIMitar
 		End Sub
 	End Class
 
+	''' <summary>
+	''' Selector for WMI or CIM objects when both possibilities exist. Ex: __InstanceCreationEvent vs. CIM_InstCreation
+	''' </summary>
+	Public Enum Hierarchy
+		''' <summary>
+		''' Use for objects such as CIM_InstCreation, CIM_InstModification, and CIM_InstDeletion
+		''' </summary>
+		CIM
+
+		''' <summary>
+		''' Use for objects such as __InstanceCreationEvent, __InstanceModificationEvent, and __InstanceDeletionEvent
+		''' </summary>
+		WMI
+	End Enum
+
+	''' <summary>
+	''' Specifies the CIM or WMI indication class category.
+	''' </summary>
+	Public Enum IndicationType
+		Creation
+		Modification
+		Deletion
+	End Enum
+
+	''' <summary>
+	''' Specialized CIM subscriber for CIM or WMI indication objects.
+	''' </summary>
+	Public MustInherit Class InstanceIndicationController
+		Inherits CimSubscriptionController
+
+		Public Property WatchHierarchy As Hierarchy = Hierarchy.WMI
+		Public Property WatchedClassName As String = ""
+		Public Property QueryInterval As UInteger = 1
+		Public Property WatchType As IndicationType
+
+		Public Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Hierarchy)
+			MyBase.New(Session, [Namespace])
+			Me.WatchedClassName = WatchedClassName
+			Me.WatchHierarchy = WatchCategory
+			Me.WatchType = WatchType
+		End Sub
+
+		''' <summary>
+		''' Creates a specialized indication watcher for creation, deletion, or modification events of a particular class based on input.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="WatchType">The type of instance to watch for</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <returns></returns>
+		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI) As InstanceIndicationController
+			Select Case WatchType
+				Case IndicationType.Creation
+					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+				Case IndicationType.Deletion
+					Return New InstanceDeletionController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+				Case Else ' modification
+					Return New InstanceModificationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+			End Select
+		End Function
+
+		Protected Overrides Function InvokeOperation() As IObservable(Of CimSubscriptionResult)
+			If QueryInterval < 2 Then QueryInterval = 2
+			Dim IndicationClass As String = String.Empty
+			Select Case WatchType
+				Case IndicationType.Creation
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceCreation, WmiClassNameInstanceCreation).ToString
+				Case IndicationType.Deletion
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceDeletion, WmiClassNameInstanceDeletion).ToString
+				Case Else   ' modification
+					IndicationClass = IIf(WatchHierarchy = Hierarchy.CIM, CimClassNameInstanceModification, WmiClassNameInstanceModication).ToString
+			End Select
+			Dim Selector As String = IIf(WatchHierarchy = Hierarchy.CIM, CimSubscriptionInstanceSelector, WmiSubscriptionInstanceSelector).ToString
+			QueryText = String.Format(QueryTemplateTimedEvent, IndicationClass, QueryInterval, Selector, WatchedClassName)
+			Return MyBase.InvokeOperation()
+		End Function
+	End Class
+
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object creation events.
+	''' </summary>
+	Public Class InstanceCreationController
+		Inherits InstanceIndicationController
+
+		''' <summary>
+		''' Creates a new CIM or WMI object creation subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchHierarchy)
+		End Sub
+	End Class
+
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object modification events.
+	''' </summary>
+	Public Class InstanceModificationController
+		Inherits InstanceIndicationController
+
+		''' <summary>
+		''' Creates a new CIM or WMI object modification subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchHierarchy)
+		End Sub
+	End Class
+
+	''' <summary>
+	''' Specialized CIM subscriber that watches for CIM or WMI object deletion events.
+	''' </summary>
+	Public Class InstanceDeletionController
+		Inherits InstanceIndicationController
+
+		''' <summary>
+		''' Creates a new CIM or WMI object deletion subscriber.
+		''' </summary>
+		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
+		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
+		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
+		''' <param name="WatchCategory">Use indications from the WMI or CIM hierarchy</param>
+		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
+		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchCategory)
+		End Sub
+	End Class
 End Namespace

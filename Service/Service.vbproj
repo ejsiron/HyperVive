@@ -78,6 +78,7 @@
   <ItemGroup>
     <Compile Include="AsyncExtensions.vb" />
     <Compile Include="GlobalConstants.vb" />
+    <Compile Include="CheckpointJobWatcher.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
@@ -90,6 +91,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="RegistryController.vb" />
+    <Compile Include="VirtualizationCimController.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="VMStartController.vb" />
     <Compile Include="WakeOnLanListener.vb" />

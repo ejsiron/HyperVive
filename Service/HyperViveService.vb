@@ -9,7 +9,12 @@ Public Module HyperViveEvents
 	Public Class DebugMessageEventArgs
 
 		Inherits EventArgs
-		Public Property Message As String = String.Empty
+		Public Property Message As String
+		Public Property EventId As Integer
+		Public Sub New(ByVal Message As String, Optional ByVal EventId As Integer = EventIdDebugGeneral)
+			Me.Message = Message
+			Me.EventId = EventId
+		End Sub
 	End Class
 
 	''' <summary>
@@ -20,6 +25,7 @@ Public Module HyperViveEvents
 
 		Public Property ModuleName As String
 		Public Property [Error] As Exception
+		Public Property EventId As Integer = EventIdModuleErrorGeneral
 	End Class
 End Module
 
@@ -29,6 +35,7 @@ Public Class HyperViveService
 	Private WithEvents AdapterInventory As VMNetAdapterInventory
 	Private WithEvents WOLListener As WakeOnLanListener
 	Private WithEvents VMStarter As VMStartController
+	Private WithEvents CheckpointWatcher As CheckpointJobWatcher
 
 	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
 	Private Const ElevationError As String = "Must run as an elevated user"
@@ -36,16 +43,20 @@ Public Class HyperViveService
 	Private Const UnexpectedAppErrorTemplate As String = "Halting due to unexpected error ""{0}"" of type {1}"
 	Private Const UnexpectedModuleErrorTemplate As String = "Unexpected error of type ""{0}"" in module ""{1}"": {2}"
 	Private Const WolReceivedTemplate As String = "Received WOL frame from {0} for {1}"
-	Private Const DebugMessageTemplate As String = "Debug: {0}"
-	Private Const StartResultTemplate As String = "VM start operation {0}.
+	Private Const StartResultTemplate As String = "VM wake-on-LAN start operation {0}.
 VM name: {1}
-ID: {2}
-MAC address: {3}
+VM ID: {2}
+VM MAC address: {3}
 Request source: {4}
 Result code: {5}
 Result message: {6}"
 	Private Const SucceededMessage As String = "succeeded"
 	Private Const FailedMessage As String = "failed"
+	Private Const CheckpointActionTemplate As String = "Checkpoint action ""{0}"" initiated by {1} for VM {2}
+VM ID: {3}
+Job instance ID: {4}"
+	Private Const CheckpointActionCompletedTemplate As String = "
+Result: {0} ({1})"
 
 	Private ReadOnly Property ServiceRegistryPath As String
 		Get
@@ -66,6 +77,8 @@ Result message: {6}"
 			VMStarter = New VMStartController(LocalCimSession)
 			WOLListener = New WakeOnLanListener
 			WOLListener.Start()
+			CheckpointWatcher = New CheckpointJobWatcher(LocalCimSession)
+			CheckpointWatcher.Start()
 		Else
 			EventLog.WriteEntry(ElevationError, EventLogEntryType.Error)
 			Kill(5)
@@ -73,12 +86,14 @@ Result message: {6}"
 	End Sub
 
 	Protected Overrides Sub OnStop()
-		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 		WOLListener?.Dispose()
 		DebugModeSettingReader.Stop()
-		AdapterInventory.Dispose()
+		AdapterInventory?.Dispose()
 		VMStarter = Nothing
+		CheckpointWatcher?.Cancel()
+		CheckpointWatcher?.Dispose()
 		LocalCimSession?.Dispose()
+		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 	End Sub
 
 	Private Sub UpdateDebugMode(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs) Handles DebugModeSettingReader.RegistryValueChanged
@@ -87,31 +102,34 @@ Result message: {6}"
 		Catch ex As Exception
 			DebugMode = False
 		End Try
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(DebugModeReportTemplate, DebugMode)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs(String.Format(DebugModeReportTemplate, DebugMode), EventIdDebugModeChanged))
 	End Sub
 
 	Private Sub AppErrorReceived(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
 		Dim UnknownError As Exception = CType(e.ExceptionObject, Exception)
-		EventLog.WriteEntry(String.Format(UnexpectedAppErrorTemplate, UnknownError.Message, UnknownError.GetType.FullName), EventLogEntryType.Error)
+		EventLog.WriteEntry(String.Format(UnexpectedAppErrorTemplate, UnknownError.Message, UnknownError.GetType.FullName), EventLogEntryType.Error, EventIdAppError)
 		Kill(CType(IIf(UnknownError.HResult = 0, -1, UnknownError.HResult), Integer))
 		If TypeOf UnknownError Is IDisposable Then   ' CIM exceptions are disposable
 			CType(UnknownError, IDisposable).Dispose()
 		End If
 	End Sub
 
-	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, VMStarter.StarterError
-		EventLog.WriteEntry(String.Format(UnexpectedModuleErrorTemplate, e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error)
+	Private Sub ModuleErrorReceived(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs) Handles DebugModeSettingReader.RegistryAccessError, WOLListener.ReceiverError, CheckpointWatcher.CheckpointWatcherErrorOccurred ' , VMStarter.StarterError (unused at this time)
+		EventLog.WriteEntry(String.Format(UnexpectedModuleErrorTemplate, e.Error.GetType.FullName(), e.ModuleName, e.Error.Message), EventLogEntryType.Error, e.EventId)
+		If TypeOf e Is IDisposable Then
+			CType(e, IDisposable).Dispose()
+		End If
 	End Sub
 
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
-		WriteDebugMessage(Me, New DebugMessageEventArgs With {.Message = String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress)})
+		WriteDebugMessage(Me, New DebugMessageEventArgs(String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress), EventIdMagicPacketReceived))
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
 		VMStarter.Start(e.MacAddress, VmIDs, e.SenderIP.ToString)
 	End Sub
 
-	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated
+	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated, CheckpointWatcher.DebugMessageGenerated
 		If DebugMode Then
-			EventLog.WriteEntry(String.Format(DebugMessageTemplate, e.Message))
+			EventLog.WriteEntry(e.Message, EventLogEntryType.Information, e.EventId)
 		End If
 	End Sub
 
@@ -121,8 +139,23 @@ Result message: {6}"
 				.VirtualMachineInfo.Name, .VirtualMachineInfo.ID, .VirtualMachineInfo.MacAddress,
 				.VirtualMachineInfo.SourceIP, .ResultCode, .ResultText)
 			EventLog.WriteEntry(MessageTemplate,
-				CType(IIf(.Success, EventLogEntryType.Information, EventLogEntryType.Error), EventLogEntryType))
+				CType(IIf(.Success, EventLogEntryType.Information, EventLogEntryType.Error), EventLogEntryType),
+				CInt(IIf(.Success, EventIdVMStartSuccess, EventIdVMStartFailed)))
 		End With
+	End Sub
+
+	Private Sub WriteCheckpointActionStarted(ByVal sender As Object, ByVal e As CheckpointActionEventArgs) Handles CheckpointWatcher.CheckpointJobStarted, CheckpointWatcher.CheckpointJobCompleted
+		Dim Message As String = String.Format(CheckpointActionTemplate, e.JobTypeName, e.UserName, e.VMName, e.VMID, e.JobInstanceID)
+		Dim EventType As EventLogEntryType = EventLogEntryType.Information
+		Dim EventId As Integer = EventIdCheckpointActionStarted
+		If e.IsCompleted Then
+			Message += String.Format(CheckpointActionCompletedTemplate, e.CompletionStatus, e.CompletionCode)
+			EventId = CInt(IIf(e.CompletionCode = VirtualizationMethodErrors.NoError, EventIdCheckpointActionSucceeded, EventIdCheckpointActionFailed))
+			If e.CompletionCode <> VirtualizationMethodErrors.NoError Then
+				EventType = EventLogEntryType.Error
+			End If
+		End If
+		EventLog.WriteEntry(Message, EventType, EventId)
 	End Sub
 
 	Private Sub Kill(ByVal ExitCode As Integer)

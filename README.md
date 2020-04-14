@@ -2,13 +2,30 @@
 
 A service that performs utility functions for Hyper-V virtual machines
 
-Current version: 1.0.1
+Current version: 2.0
+
+## Version 2.0 feature: Checkpoint Watcher
+
+Want to know WHO created that Hyper-V checkpoint (formerly known as snapshots)? Now you can find out! HyperVive will watch for checkpointing events and record details. It records one event for the initiation of a checkpoint job and another when it completes.
+
+### Checkpoint Watcher Technical Brief
+
+Hyper-V uses WMI jobs behind the scenes for most of its activities. The job object contains details, including the user name of the individual that requested the job. So, HyperVive watches the WMI space for new jobs to appear. When one does, HyperVive checks to see if it has anything to do with a checkpoint. If it does, then HyperVive records the start of the event. It then watches for the event to end, and records the outcome of the job.
+
+HyperVive will record events related to these types of WMI jobs:
+
+- Checkpoint creation
+- Checkpoint deletion
+- Checkpoint application (revert)
+- Clearing of a checkpoint's saved state
+
+You will find these event entries in the host's regular Application event log.
 
 ## Version 1.0 feature: Wake-On-LAN
 
 HyperVive intercepts wake-on-LAN frames and starts all matching virtual machines from Off, Saved, or Paused states.
 
-### Technical Brief
+### Wake-on-LAN Technical Brief
 
 HyperVive maintains a local inventory of all virtual adapters connected to virtual machines (synthetic or emulated). It continually watches for adds, changes, and deletes. These events occur when virtual machines are created, migrated on or off the host, and when individual adapters are added, removed, or changed on virtual machines.
 
@@ -34,6 +51,22 @@ To instruct HyperVive to log detailed messages for troubleshooting, make the fol
 - **Value**: 1 for debug logging, 0 for minimal logging (default)
 
 Changes take effect instantly; you do not need to restart the service. If you create and then delete the key, it will stay in its current mode until restarted.
+
+### Use PowerShell to set Debug Mode
+
+To enable in PowerShell:
+
+```PowerShell
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\HyperVive\ -Name DebugMode -Value 1
+```
+
+To disable in PowerShell:
+
+```PowerShell
+Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\HyperVive\ -Name DebugMode -Value 0
+```
+
+Changes take effect instantly; you do not need to restart the service.
 
 ## Installation Instructions
 
@@ -61,5 +94,35 @@ Delete the folder that you created to hold HyperVive.exe. You may also need to d
 
 I plan to add the following:
 
-- An event recorder for checkpoints: WHO created them
 - A proper MSI installer
+
+## HyperVive Event IDs
+
+The following reference contains all HyperVive event ID codes and their basic meanings. Check the specifc event for details.
+
+- 1000: Unexpected application error
+- 1001: Module-specific error
+- 1011: Registry access error
+- 1012: Registry key open error
+- 1021: Invalid virtual adapter
+- 1022: Virtual adapter subscriber error
+- 1031: Wake-on-LAN receiver error
+- 2000: Magic packet received and processed
+- 3000: Successfully started a virtual machine
+- 3001: Failed to start a virtual machine
+- 4000: A checkpoint-related job has started
+- 4001: A checkpoint-related job succeeded
+- 4002: A checkpoint-related job failed
+- 9000: Non-specific debug message
+- 9001: HyperVive's Debug mode changed
+- 9002: Debug Mode registry key not found
+- 9003: Enumerated virtual adapters (debug)
+- 9004: A new virtual adapter was created (debug)
+- 9005: A virtual adapter changed (debug)
+- 9006: An update to a virtual adapter was intercepted, but HyperVive did not know it existed (debug)
+- 9007: A virtual adapter was deleted (debug)
+- 9008: HyperVive is trying to start a virtual machine (debug)
+- 9009: Something that looked like a magic packet was received, but it turned out to be malformed (debug)
+- 9010: Magic packet received, even if HyperVive chose not to process it (debug)
+- 9011: MAC exclusion period ended (debug)
+- 9012: Virtualization-related job intercepted (debug)
