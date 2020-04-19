@@ -79,4 +79,10 @@ Message: %2
 .
 
 MessageId=2000
-SymbolicName=MAGIC_PACKET_RECEIVED
+SymbolicName=MAGIC_PACKET_PROCESSED
+Received wake-on-LAN frame for MAC address %1 from IP address %2.
+.
+
+MessageId=3000
+SymbolicName=VIRTUAL_MACHINE_START_SUCCESS
+.
