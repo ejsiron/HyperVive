@@ -1,4 +1,5 @@
-﻿Imports System.Threading
+﻿Imports System.Runtime.CompilerServices
+Imports System.Threading
 Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 
@@ -44,19 +45,19 @@ Namespace CIMitar.Virtualization
 		End Enum
 	End Module
 
-	Public Module CustomCimVirtualizationEvents
-		Public Class VirtualizationJobNotFoundEventArgs
-			Inherits CimEventArgs
+	'Public Module CustomCimVirtualizationEvents
+	'	Public Class VirtualizationJobNotFoundEventArgs
+	'		Inherits CimEventArgs
 
-			Public Property InstanceID As String
-		End Class
+	'		Public Property InstanceID As String
+	'	End Class
 
-		Public Class VirtualizationJobCompletedArgs
-			Inherits CimEventArgs
+	'	Public Class VirtualizationJobCompletedArgs
+	'		Inherits CimEventArgs
 
-			Public Property JobInstance As CimInstance
-		End Class
-	End Module
+	'		Public Property JobInstance As CimInstance
+	'	End Class
+	'End Module
 
 	''' <summary>
 	''' Watches Msvm_ConcreteJob objects for completion. Resets itself upon job completion.
@@ -67,8 +68,8 @@ Namespace CIMitar.Virtualization
 			Me.Session = Session
 		End Sub
 
-		Public Event JobNotFound(ByVal sender As Object, ByVal e As VirtualizationJobNotFoundEventArgs)
-		Public Event JobCompleted(ByVal sender As Object, ByVal e As VirtualizationJobCompletedArgs)
+		Private ReadOnly JobNotFoundCallback As Action(Of CimSession, String)   ' InstanceID
+		Private ReadOnly JobCompletedCallback As Action(Of CimSession, CimInstance)
 
 		''' <summary>
 		''' Instance ID of the target Msvm_ConcreteJob, in <see cref="String"/> form.
@@ -133,19 +134,16 @@ Namespace CIMitar.Virtualization
 					JobSubscriber.RefreshAsync.ContinueWith(AddressOf WatcherCallback)
 					Return
 				Else
-					RaiseEvent JobCompleted(Me, New VirtualizationJobCompletedArgs With {
-						.Session = Session,
-						.JobInstance = ControllerTask.Result.First.Clone
-					})
+					JobCompletedCallback(Session, ControllerTask.Result.First.Clone)
 				End If
 			Else
-				RaiseEvent JobNotFound(Me, New VirtualizationJobNotFoundEventArgs With {.Session = Session, .InstanceID = InstanceID})
+				JobNotFoundCallback(Session, InstanceID)
 			End If
 			JobSubscriber.Dispose()
 			JobSubscriber = Nothing
 		End Sub
 
-		Private Session As CimSession
+		Private ReadOnly Session As CimSession
 		Private JobSubscriber As CimAsyncQueryInstancesController
 	End Class
 End Namespace
