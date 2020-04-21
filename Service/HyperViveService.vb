@@ -27,6 +27,25 @@ Public Module HyperViveEvents
 		Public Property [Error] As Exception
 		Public Property EventId As Integer = EventIdModuleErrorGeneral
 	End Class
+
+	Public Const CategoryApplicationError As UInteger = 1
+	Public Const CategoryModuleError As UInteger = 2
+	Public Const CategoryDebugMessage As UInteger = 3
+	Public Const CategoryMagicPacket As UInteger = 4
+	Public Const CategoryCheckpoint As UInteger = 5
+
+	Public Const IdApplicationHaltError As UInteger = &H1000
+	Public Const IdModuleError As UInteger = &H1001
+	Public Const IdRegistryAccessError As UInteger = &H1011
+	Public Const IdRegistryKeyError As UInteger = &H1012
+	Public Const IdInvalidVirtualAdapter As UInteger = &H1021
+	Public Const IdVirtualAdapterSubscriberError As UInteger = &H1022
+	Public Const IdMagicPacketProcessed As UInteger = &H2000
+	Public Const IdVirtualMachineStartSuccess As UInteger = &H3000
+	Public Const IdVirtualMachineStartFail As UInteger = &H3001
+	Public Const IdCheckpointActionStarted As UInteger = &H4000
+	Public Const IdCheckpointActionSuccess As UInteger = &H4001
+	Public Const IdCheckpointActionFail As UInteger = &H4002
 End Module
 
 Public Class HyperViveService
@@ -158,7 +177,7 @@ Result: {0} ({1})"
 		EventLog.WriteEntry(Message, EventType, EventId)
 	End Sub
 
-	Private Sub Kill(ByVal ExitCode As Integer)
+	Public Sub Kill(ByVal ExitCode As Integer)
 		Me.ExitCode = ExitCode
 		[Stop]()
 	End Sub
