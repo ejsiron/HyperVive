@@ -44,7 +44,7 @@
 //
 // Application Error
 //
-#define CATEGORY_APPLICATION_ERROR       ((WORD)0x00000001L)
+#define CATEGORY_APPLICATION_ERROR       ((WORD)1L)
 
 //
 // MessageId: CATEGORY_MODULE_ERROR
@@ -53,7 +53,7 @@
 //
 // Module Error
 //
-#define CATEGORY_MODULE_ERROR            ((WORD)0x00000002L)
+#define CATEGORY_MODULE_ERROR            ((WORD)2L)
 
 //
 // MessageId: CATEGORY_DEBUG_MESSAGE
@@ -62,7 +62,7 @@
 //
 // Debug
 //
-#define CATEGORY_DEBUG_MESSAGE           ((WORD)0x00000003L)
+#define CATEGORY_DEBUG_MESSAGE           ((WORD)3L)
 
 //
 // MessageId: CATEGORY_MAGIC_PACKET
@@ -71,7 +71,16 @@
 //
 // Magic Packet
 //
-#define CATEGORY_MAGIC_PACKET            ((WORD)0x00000004L)
+#define CATEGORY_MAGIC_PACKET            ((WORD)4L)
+
+//
+// MessageId: CATEGORY_VM_STARTER
+//
+// MessageText:
+//
+// Virtual Machine Starter
+//
+#define CATEGORY_VM_STARTER              ((WORD)5L)
 
 //
 // MessageId: CATEGORY_CHECKPOINT
@@ -80,7 +89,7 @@
 //
 // Checkpoint
 //
-#define CATEGORY_CHECKPOINT              ((WORD)0x00000005L)
+#define CATEGORY_CHECKPOINT              ((WORD)6L)
 
 // ************
 // Module Names
@@ -92,7 +101,7 @@
 //
 // %%619
 //
-#define MODULENAME_REGISTRY              ((WORD)0x000001F4L)
+#define MODULENAME_REGISTRY              ((WORD)500L)
 
 //
 // MessageId: MODULENAME_WAKEONLAN
@@ -101,7 +110,7 @@
 //
 // Wake-on-LAN
 //
-#define MODULENAME_WAKEONLAN             ((WORD)0x000001F5L)
+#define MODULENAME_WAKEONLAN             ((WORD)501L)
 
 // *******************
 // Template Components
@@ -113,7 +122,7 @@
 //
 // Virtual Machine%0
 //
-#define TEMPLATE_COMPONENT_VIRTUAL_MACHINE ((WORD)0x00000258L)
+#define TEMPLATE_COMPONENT_VIRTUAL_MACHINE ((WORD)600L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_IP_ADDRESS
@@ -122,7 +131,7 @@
 //
 // IP Address%0
 //
-#define TEMPLATE_COMPONENT_IP_ADDRESS    ((WORD)0x00000259L)
+#define TEMPLATE_COMPONENT_IP_ADDRESS    ((WORD)601L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_ID
@@ -131,7 +140,7 @@
 //
 // ID%0
 //
-#define TEMPLATE_COMPONENT_ID            ((WORD)0x0000025AL)
+#define TEMPLATE_COMPONENT_ID            ((WORD)602L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_JOB
@@ -140,7 +149,7 @@
 //
 // Job%
 //
-#define TEMPLATE_COMPONENT_JOB           ((WORD)0x0000025BL)
+#define TEMPLATE_COMPONENT_JOB           ((WORD)603L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_CHECKPOINT_ACTION
@@ -149,7 +158,7 @@
 //
 // Checkpoint action%0
 //
-#define TEMPLATE_COMPONENT_CHECKPOINT_ACTION ((WORD)0x0000025CL)
+#define TEMPLATE_COMPONENT_CHECKPOINT_ACTION ((WORD)604L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_STARTED
@@ -158,7 +167,7 @@
 //
 // started%0
 //
-#define TEMPLATE_COMPONENT_STARTED       ((WORD)0x0000025DL)
+#define TEMPLATE_COMPONENT_STARTED       ((WORD)605L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_SUCCEEDED
@@ -167,7 +176,7 @@
 //
 // succeeded%0
 //
-#define TEMPLATE_COMPONENT_SUCCEEDED     ((WORD)0x0000025EL)
+#define TEMPLATE_COMPONENT_SUCCEEDED     ((WORD)606L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_FAILED
@@ -176,7 +185,7 @@
 //
 // failed%0
 //
-#define TEMPLATE_COMPONENT_FAILED        ((WORD)0x0000025FL)
+#define TEMPLATE_COMPONENT_FAILED        ((WORD)607L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_ERROR
@@ -185,7 +194,7 @@
 //
 // Error%0
 //
-#define TEMPLATE_COMPONENT_ERROR         ((WORD)0x00000260L)
+#define TEMPLATE_COMPONENT_ERROR         ((WORD)608L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_RESULT
@@ -194,7 +203,7 @@
 //
 // Result%0
 //
-#define TEMPLATE_COMPONENT_RESULT        ((WORD)0x00000261L)
+#define TEMPLATE_COMPONENT_RESULT        ((WORD)609L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_READ
@@ -203,7 +212,7 @@
 //
 // Read%0
 //
-#define TEMPLATE_COMPONENT_READ          ((WORD)0x00000262L)
+#define TEMPLATE_COMPONENT_READ          ((WORD)610L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_OPEN
@@ -212,7 +221,7 @@
 //
 // Open%0
 //
-#define TEMPLATE_COMPONENT_OPEN          ((WORD)0x00000263L)
+#define TEMPLATE_COMPONENT_OPEN          ((WORD)611L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_VIRTUAL_ADAPTER
@@ -221,7 +230,7 @@
 //
 // Virtual network adapter%0
 //
-#define TEMPLATE_COMPONENT_VIRTUAL_ADAPTER ((WORD)0x00000264L)
+#define TEMPLATE_COMPONENT_VIRTUAL_ADAPTER ((WORD)612L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_CREATED
@@ -230,7 +239,7 @@
 //
 // created%0
 //
-#define TEMPLATE_COMPONENT_CREATED       ((WORD)0x00000265L)
+#define TEMPLATE_COMPONENT_CREATED       ((WORD)613L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_CHANGED
@@ -239,7 +248,7 @@
 //
 // changed%0
 //
-#define TEMPLATE_COMPONENT_CHANGED       ((WORD)0x00000266L)
+#define TEMPLATE_COMPONENT_CHANGED       ((WORD)614L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_DELETED
@@ -248,7 +257,7 @@
 //
 // deleted%0
 //
-#define TEMPLATE_COMPONENT_DELETED       ((WORD)0x00000267L)
+#define TEMPLATE_COMPONENT_DELETED       ((WORD)615L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_EMULATED
@@ -257,7 +266,7 @@
 //
 // emulated%0
 //
-#define TEMPLATE_COMPONENT_EMULATED      ((WORD)0x00000268L)
+#define TEMPLATE_COMPONENT_EMULATED      ((WORD)616L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_SYNTHETIC
@@ -266,7 +275,7 @@
 //
 // synthetic%0
 //
-#define TEMPLATE_COMPONENT_SYNTHETIC     ((WORD)0x00000269L)
+#define TEMPLATE_COMPONENT_SYNTHETIC     ((WORD)617L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_TYPE
@@ -275,7 +284,7 @@
 //
 // type%0
 //
-#define TEMPLATE_COMPONENT_TYPE          ((WORD)0x0000026AL)
+#define TEMPLATE_COMPONENT_TYPE          ((WORD)618L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_REGISTRY
@@ -284,7 +293,7 @@
 //
 // Registry%0
 //
-#define TEMPLATE_COMPONENT_REGISTRY      ((WORD)0x0000026BL)
+#define TEMPLATE_COMPONENT_REGISTRY      ((WORD)619L)
 
 //
 // MessageId: TEMPLATE_COMPONENT_KVP
@@ -293,7 +302,7 @@
 //
 // KVP%0
 //
-#define TEMPLATE_COMPONENT_KVP           ((WORD)0x0000026CL)
+#define TEMPLATE_COMPONENT_KVP           ((WORD)620L)
 
 // *************
 // Sub-templates
@@ -305,7 +314,7 @@
 //
 // %%600 name:%0
 //
-#define SUBTEMPLATE_VIRTUAL_MACHINE_NAME ((WORD)0x000002BCL)
+#define SUBTEMPLATE_VIRTUAL_MACHINE_NAME ((WORD)700L)
 
 //
 // MessageId: SUBTEMPLATE_VIRTUAL_MACHINE_ID
@@ -314,7 +323,7 @@
 //
 // %%600 ID:%0
 //
-#define SUBTEMPLATE_VIRTUAL_MACHINE_ID   ((WORD)0x000002BDL)
+#define SUBTEMPLATE_VIRTUAL_MACHINE_ID   ((WORD)701L)
 
 //
 // MessageId: SUBTEMPLATE_MAC_ADDRESS
@@ -323,7 +332,7 @@
 //
 // MAC address:%0
 //
-#define SUBTEMPLATE_MAC_ADDRESS          ((WORD)0x000002BEL)
+#define SUBTEMPLATE_MAC_ADDRESS          ((WORD)702L)
 
 //
 // MessageId: SUBTEMPLATE_REQUEST_SOURCE
@@ -332,7 +341,7 @@
 //
 // Request source%0
 //
-#define SUBTEMPLATE_REQUEST_SOURCE       ((WORD)0x000002BFL)
+#define SUBTEMPLATE_REQUEST_SOURCE       ((WORD)703L)
 
 //
 // MessageId: SUBTEMPLATE_RESULT_CODE
@@ -341,7 +350,7 @@
 //
 // %%609 code:%0
 //
-#define SUBTEMPLATE_RESULT_CODE          ((WORD)0x000002C0L)
+#define SUBTEMPLATE_RESULT_CODE          ((WORD)704L)
 
 //
 // MessageId: SUBTEMPLATE_RESULT_MESSAGE
@@ -350,7 +359,7 @@
 //
 // %%609 message:%0
 //
-#define SUBTEMPLATE_RESULT_MESSAGE       ((WORD)0x000002C1L)
+#define SUBTEMPLATE_RESULT_MESSAGE       ((WORD)705L)
 
 //
 // MessageId: SUBTEMPLATE_INITIATOR
@@ -359,7 +368,7 @@
 //
 // Initiator:%0
 //
-#define SUBTEMPLATE_INITIATOR            ((WORD)0x000002C2L)
+#define SUBTEMPLATE_INITIATOR            ((WORD)706L)
 
 //
 // MessageId: SUBTEMPLATE_ERROR_MESSAGE
@@ -368,7 +377,7 @@
 //
 // %%608 message:%0
 //
-#define SUBTEMPLATE_ERROR_MESSAGE        ((WORD)0x000002C3L)
+#define SUBTEMPLATE_ERROR_MESSAGE        ((WORD)707L)
 
 //
 // MessageId: SUBTEMPLATE_ERROR_TYPE
@@ -377,7 +386,7 @@
 //
 // %%608 %%618:%0
 //
-#define SUBTEMPLATE_ERROR_TYPE           ((WORD)0x000002C4L)
+#define SUBTEMPLATE_ERROR_TYPE           ((WORD)708L)
 
 //
 // MessageId: SUBTEMPLATE_REGISTRY_ACCESS
@@ -387,7 +396,7 @@
 // %%619 access error.
 // Action:%0
 //
-#define SUBTEMPLATE_REGISTRY_ACCESS      ((WORD)0x000002C5L)
+#define SUBTEMPLATE_REGISTRY_ACCESS      ((WORD)709L)
 
 //
 // MessageId: SUBTEMPLATE_PATH
@@ -396,7 +405,7 @@
 //
 // Path:%0
 //
-#define SUBTEMPLATE_PATH                 ((WORD)0x000002C6L)
+#define SUBTEMPLATE_PATH                 ((WORD)710L)
 
 //
 // MessageId: SUBTEMPLATE_VIRTUAL_ADAPTER_TYPE
@@ -405,7 +414,7 @@
 //
 // %%612 %%618:%0
 //
-#define SUBTEMPLATE_VIRTUAL_ADAPTER_TYPE ((WORD)0x000002C7L)
+#define SUBTEMPLATE_VIRTUAL_ADAPTER_TYPE ((WORD)711L)
 
 //
 // MessageId: SUBTEMPLATE_REGISTRY_PATH
@@ -414,7 +423,7 @@
 //
 // %%619 %%710: %0
 //
-#define SUBTEMPLATE_REGISTRY_PATH        ((WORD)0x000002C8L)
+#define SUBTEMPLATE_REGISTRY_PATH        ((WORD)712L)
 
 //
 // MessageId: SUBTEMPLATE_VIRTUAL_MACHINE_BOOT_ATTEMPT
@@ -423,7 +432,7 @@
 //
 // %%600 boot-up attempt%0
 //
-#define SUBTEMPLATE_VIRTUAL_MACHINE_BOOT_ATTEMPT ((WORD)0x000002C9L)
+#define SUBTEMPLATE_VIRTUAL_MACHINE_BOOT_ATTEMPT ((WORD)713L)
 
 // ********
 // Messages
@@ -439,7 +448,7 @@
 // %%707 %1
 // %%708 %2
 //
-#define APPLICATION_HALT_ERROR           ((WORD)0x000003E8L)
+#define APPLICATION_HALT_ERROR           ((WORD)1000L)
 
 // 1: Module name
 // 2: Error message
@@ -454,7 +463,7 @@
 // %%707 %2
 // %%708 %3
 //
-#define MODULE_ERROR                     ((WORD)0x000003E9L)
+#define MODULE_ERROR                     ((WORD)1001L)
 
 // 1: Registry path
 // 2: Error message
@@ -469,7 +478,7 @@
 // %%707 %2
 // %%708 %3
 //
-#define REGISTRY_ACCESS_ERROR            ((WORD)0x000003F3L)
+#define REGISTRY_ACCESS_ERROR            ((WORD)1011L)
 
 // 1: Registry path
 // 2: Error message
@@ -484,7 +493,7 @@
 // %%707 %2
 // %%708 %3
 //
-#define REGISTRY_OPENKEY_ERROR           ((WORD)0x000003F4L)
+#define REGISTRY_OPENKEY_ERROR           ((WORD)1012L)
 
 // 1: VNIC Instance ID
 //
@@ -494,7 +503,7 @@
 //
 // Invalid virtual network adapter instance ID %1.
 //
-#define INVALID_VIRTUAL_ADAPTER          ((WORD)0x000003FDL)
+#define INVALID_VIRTUAL_ADAPTER          ((WORD)1021L)
 
 // No special errors at this time. Rolled up into 1001
 // MessageId=1022
@@ -514,7 +523,7 @@
 // %%702 %1
 // %%703 %%601: %2.
 //
-#define MAGIC_PACKET_PROCESSED           ((WORD)0x000007D0L)
+#define MAGIC_PACKET_PROCESSED           ((WORD)2000L)
 
 // 1: VM name
 // 2: VM ID
@@ -531,7 +540,7 @@
 // %%600 %%702 %3
 // %%703 %%601: %4
 //
-#define VIRTUAL_MACHINE_START_SUCCESS    ((WORD)0x00000BB8L)
+#define VIRTUAL_MACHINE_START_SUCCESS    ((WORD)3000L)
 
 // 1: VM name
 // 2: VM ID
@@ -552,7 +561,7 @@
 // %%704: %5
 // %%705: %6
 //
-#define VIRTUAL_MACHINE_START_FAIL       ((WORD)0x00000BB9L)
+#define VIRTUAL_MACHINE_START_FAIL       ((WORD)3001L)
 
 // 1: Checkpoint action
 // 2: VM name
@@ -570,7 +579,7 @@
 // %%600 %%701 %4
 // %%603 %%701 %5
 //
-#define CHECKPOINT_ACTION_STARTED        ((WORD)0x00000FA0L)
+#define CHECKPOINT_ACTION_STARTED        ((WORD)4000L)
 
 // 1: Checkpoint action
 // 2: VM name
@@ -588,7 +597,7 @@
 // %%600 %%701 %4
 // %%603 %%701 %5
 //
-#define CHECKPOINT_ACTION_SUCCESS        ((WORD)0x00000FA1L)
+#define CHECKPOINT_ACTION_SUCCESS        ((WORD)4001L)
 
 // 1: Checkpoint action
 // 2: VM name
@@ -610,7 +619,7 @@
 // %%704 %6
 // %%705 %7
 //
-#define CHECKPOINT_ACTION_FAIL           ((WORD)0x00000FA2L)
+#define CHECKPOINT_ACTION_FAIL           ((WORD)4002L)
 
 // 1: Message as input
 //
@@ -620,7 +629,7 @@
 //
 // %1
 //
-#define DEBUG_MESSAGE_GENERIC            ((WORD)0x00002328L)
+#define DEBUG_MESSAGE_GENERIC            ((WORD)9000L)
 
 // 1: Debug mode switch setting
 //
@@ -630,7 +639,7 @@
 //
 // Debug mode set to %1
 //
-#define DEBUG_DEBUG_MODE_CHANGED         ((WORD)0x00002329L)
+#define DEBUG_DEBUG_MODE_CHANGED         ((WORD)9001L)
 
 // 1: KVP name
 // 2: Registry path
@@ -643,7 +652,7 @@
 // %%620 name: %1
 // %%710 %2
 //
-#define DEBUG_REGISTRY_KVP_NOTFOUND      ((WORD)0x0000232AL)
+#define DEBUG_REGISTRY_KVP_NOTFOUND      ((WORD)9002L)
 
 // 1: Number of virtual adapters
 //
@@ -653,7 +662,7 @@
 //
 // Enumerated %1 virtual network adapters.
 //
-#define DEBUG_VIRTUAL_ADAPTER_ENUMERATED_COUNT ((WORD)0x0000232BL)
+#define DEBUG_VIRTUAL_ADAPTER_ENUMERATED_COUNT ((WORD)9003L)
 
 // 1: MAC address
 // 2: emulated or synthetic
@@ -666,7 +675,7 @@
 // %%702 %1
 // %%711 %2
 //
-#define DEBUG_VIRTUAL_ADAPTER_NEW        ((WORD)0x0000232CL)
+#define DEBUG_VIRTUAL_ADAPTER_NEW        ((WORD)9004L)
 
 // 1: MAC address
 // 2: emulated or synthetic
@@ -679,7 +688,7 @@
 // %%702 %1
 // %%711 %2
 //
-#define DEBUG_VIRTUAL_ADAPTER_CHANGED    ((WORD)0x0000232DL)
+#define DEBUG_VIRTUAL_ADAPTER_CHANGED    ((WORD)9005L)
 
 // 1: MAC address
 // 2: emulated or synthetic
@@ -692,7 +701,7 @@
 // %%702 %1
 // %%711 %2
 //
-#define DEBUG_VIRTUAL_ADAPTER_NEW_FROM_UPDATE ((WORD)0x0000232EL)
+#define DEBUG_VIRTUAL_ADAPTER_NEW_FROM_UPDATE ((WORD)9006L)
 
 // 1: MAC address
 // 2: emulated or synthetic
@@ -705,7 +714,7 @@
 // %%702 %1
 // %%711 %2
 //
-#define DEBUG_VIRTUAL_ADAPTER_DELETED    ((WORD)0x0000232FL)
+#define DEBUG_VIRTUAL_ADAPTER_DELETED    ((WORD)9007L)
 
 // 1: VM name
 // 2: VM ID
@@ -720,7 +729,7 @@
 // %%600 %%602: %2
 // %%603 %%602: %3
 //
-#define DEBUG_INITIATED_VM_START         ((WORD)0x00002330L)
+#define DEBUG_INITIATED_VM_START         ((WORD)9008L)
 
 //
 // MessageId: DEBUG_MAGIC_PACKET_INVALID_FORMAT
@@ -729,7 +738,7 @@
 //
 // Possible magic packet received with invalid format.
 //
-#define DEBUG_MAGIC_PACKET_INVALID_FORMAT ((WORD)0x00002331L)
+#define DEBUG_MAGIC_PACKET_INVALID_FORMAT ((WORD)9009L)
 
 // 1: MAC address
 //
@@ -739,7 +748,7 @@
 //
 // Received duplicate/excluded request for %%702 %1
 //
-#define DEBUG_MAGIC_PACKET_DUPLICATE     ((WORD)0x00002332L)
+#define DEBUG_MAGIC_PACKET_DUPLICATE     ((WORD)9010L)
 
 // 1: MAC address
 //
@@ -749,7 +758,7 @@
 //
 // Ending magic packet exclusion period for %%702 %1
 //
-#define DEBUG_MAGIC_PACKET_EXCLUSION_ENDED ((WORD)0x00002333L)
+#define DEBUG_MAGIC_PACKET_EXCLUSION_ENDED ((WORD)9011L)
 
 // 1: Job type code
 // 2: Job ID
@@ -762,5 +771,5 @@
 // %%603 %%618: %1
 // %%603 %%602: %2
 //
-#define DEBUG_VIRTUALIZATION_JOB_RECEIVED ((WORD)0x00002334L)
+#define DEBUG_VIRTUALIZATION_JOB_RECEIVED ((WORD)9012L)
 

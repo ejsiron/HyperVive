@@ -92,6 +92,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="RegistryController.vb" />
+    <Compile Include="ServiceModuleLogger.vb" />
     <Compile Include="VirtualizationCimController.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="VMStartController.vb" />

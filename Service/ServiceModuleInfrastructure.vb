@@ -7,7 +7,7 @@ Public Interface IServiceModule
 	Sub [Stop]()
 End Interface
 
-Public Class ModuleController
+Partial Public Class ModuleController
 	Public Shared Function Start(ByVal MainService As HyperViveService) As ModuleController
 		If ControllerInstance Is Nothing Then
 			ControllerInstance = New ModuleController(MainService)
@@ -25,18 +25,12 @@ Public Class ModuleController
 		End If
 	End Sub
 
-	Private ReadOnly Service As HyperViveService
-	Private ReadOnly LocalCimSession As CimSession
-	Private ReadOnly EventTemplate As New EventInstance(0L, 0)
+	Private Shared Service As HyperViveService
+	Private Shared LocalCimSession As CimSession
 	Private Shared ControllerInstance As ModuleController = Nothing
+
 	Private Sub New(ByVal MainService As HyperViveService)
 		Service = MainService
 		LocalCimSession = CimSession.Create(Nothing)
-	End Sub
-
-	Private Sub WriteEventLogEntry(ByVal EventId As Long, ByVal EventCategory As Integer, Parameters As Object(), Optional EventType As EventLogEntryType = EventLogEntryType.Information)
-		EventTemplate.InstanceId = EventId
-		EventTemplate.CategoryId = EventCategory
-		Service.EventLog.WriteEvent(EventTemplate, Parameters)
 	End Sub
 End Class

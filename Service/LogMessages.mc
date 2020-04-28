@@ -1,36 +1,43 @@
 MessageIdTypedef=WORD
 LanguageNames=(English=0x409:MSG00409)
+OutputBase=10
 
 ;// **********
 ;// Categories
 ;// **********
 
-MessageId=0x1
+MessageId=1
 Severity=Success
 SymbolicName=CATEGORY_APPLICATION_ERROR
 Language=English
 Application Error
 .
 
-MessageId=0x2
+MessageId=2
 SymbolicName=CATEGORY_MODULE_ERROR
 Language=English
 Module Error
 .
 
-MessageId=0x3
+MessageId=3
 SymbolicName=CATEGORY_DEBUG_MESSAGE
 Language=English
 Debug
 .
 
-MessageId=0x4
+MessageId=4
 SymbolicName=CATEGORY_MAGIC_PACKET
 Language=English
 Magic Packet
 .
 
-MessageId=0x5
+MessageId=5
+SymbolicName=CATEGORY_VM_STARTER
+Language=English
+Virtual Machine Starter
+.
+
+MessageId=6
 SymbolicName=CATEGORY_CHECKPOINT
 Language=English
 Checkpoint

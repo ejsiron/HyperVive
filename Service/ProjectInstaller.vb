@@ -10,7 +10,6 @@ Public Class ProjectInstaller
 		InitializeComponent()
 
 		'Add initialization code after the call to InitializeComponent
-
 	End Sub
 
 End Class
