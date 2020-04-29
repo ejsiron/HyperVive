@@ -2,51 +2,6 @@
 Imports Microsoft.Management.Infrastructure
 Imports System.Security.Principal
 
-Public Module HyperViveEvents
-	''' <summary>
-	''' Debug-level message event
-	''' </summary>
-	Public Class DebugMessageEventArgs
-
-		Inherits EventArgs
-		Public Property Message As String
-		Public Property EventId As Integer
-		Public Sub New(ByVal Message As String, Optional ByVal EventId As Integer = EventIdDebugGeneral)
-			Me.Message = Message
-			Me.EventId = EventId
-		End Sub
-	End Class
-
-	''' <summary>
-	''' Module-specific error message
-	''' </summary>
-	Public Class ModuleExceptionEventArgs
-		Inherits EventArgs
-
-		Public Property ModuleName As String
-		Public Property [Error] As Exception
-		Public Property EventId As Integer = EventIdModuleErrorGeneral
-	End Class
-
-	Public Const CategoryApplicationError As UInteger = 1
-	Public Const CategoryModuleError As UInteger = 2
-	Public Const CategoryDebugMessage As UInteger = 3
-	Public Const CategoryMagicPacket As UInteger = 4
-	Public Const CategoryCheckpoint As UInteger = 5
-
-	Public Const IdApplicationHaltError As UInteger = &H1000
-	Public Const IdModuleError As UInteger = &H1001
-	Public Const IdRegistryAccessError As UInteger = &H1011
-	Public Const IdRegistryKeyError As UInteger = &H1012
-	Public Const IdInvalidVirtualAdapter As UInteger = &H1021
-	Public Const IdVirtualAdapterSubscriberError As UInteger = &H1022
-	Public Const IdMagicPacketProcessed As UInteger = &H2000
-	Public Const IdVirtualMachineStartSuccess As UInteger = &H3000
-	Public Const IdVirtualMachineStartFail As UInteger = &H3001
-	Public Const IdCheckpointActionStarted As UInteger = &H4000
-	Public Const IdCheckpointActionSuccess As UInteger = &H4001
-	Public Const IdCheckpointActionFail As UInteger = &H4002
-End Module
 
 Public Class HyperViveService
 	Private LocalCimSession As CimSession
@@ -58,24 +13,6 @@ Public Class HyperViveService
 
 	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
 	Private Const ElevationError As String = "Must run as an elevated user"
-	Private Const DebugModeReportTemplate As String = "Debug mode set to {0}"
-	Private Const UnexpectedAppErrorTemplate As String = "Halting due to unexpected error ""{0}"" of type {1}"
-	Private Const UnexpectedModuleErrorTemplate As String = "Unexpected error of type ""{0}"" in module ""{1}"": {2}"
-	Private Const WolReceivedTemplate As String = "Received WOL frame from {0} for {1}"
-	Private Const StartResultTemplate As String = "VM wake-on-LAN start operation {0}.
-VM name: {1}
-VM ID: {2}
-VM MAC address: {3}
-Request source: {4}
-Result code: {5}
-Result message: {6}"
-	Private Const SucceededMessage As String = "succeeded"
-	Private Const FailedMessage As String = "failed"
-	Private Const CheckpointActionTemplate As String = "Checkpoint action ""{0}"" initiated by {1} for VM {2}
-VM ID: {3}
-Job instance ID: {4}"
-	Private Const CheckpointActionCompletedTemplate As String = "
-Result: {0} ({1})"
 
 	Private ReadOnly Property ServiceRegistryPath As String
 		Get
