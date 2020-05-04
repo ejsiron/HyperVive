@@ -88,7 +88,7 @@ Namespace CIMitar.Virtualization
 			Using JobWatcher As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
 				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)
 				}
-				Dim JobList As CimInstanceList = Await JobWatcher.StartAsync
+				Dim JobList As CimInstanceCollection = Await JobWatcher.StartAsync
 				If JobList.Count > 0 Then
 					Job = JobList.First
 					While JobIsRunning(Job)
@@ -127,7 +127,7 @@ Namespace CIMitar.Virtualization
 		''' Recursively watches for an Msvm_ConcreteJob to complete.
 		''' </summary>
 		''' <param name="ControllerTask"></param>
-		Private Sub WatcherCallback(ControllerTask As Task(Of CimInstanceList))
+		Private Sub WatcherCallback(ControllerTask As Task(Of CimInstanceCollection))
 			If ControllerTask.Result.Count > 0 Then
 				If JobIsRunning(ControllerTask.Result.First) Then
 					Thread.Sleep(RecheckDelay)

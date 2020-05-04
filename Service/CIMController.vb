@@ -161,7 +161,7 @@ Namespace CIMitar
 	''' <summary>
 	''' Utility class to Dispose-enable a <see cref="List(Of CimInstance)"/>
 	''' </summary>
-	Public Class CimInstanceList
+	Public Class CimInstanceCollection
 		Inherits List(Of CimInstance)
 		Implements IDisposable
 
@@ -176,11 +176,11 @@ Namespace CIMitar
 		End Sub
 
 		''' <summary>
-		''' Creates clones of all <see cref="CimInstance"/> items in a <see cref="CimInstanceList"/> into a new <see cref="CimInstanceList"/>
+		''' Creates clones of all <see cref="CimInstance"/> items in a <see cref="CimInstanceCollection"/> into a new <see cref="CimInstanceCollection"/>
 		''' </summary>
-		''' <returns><see cref="CimInstanceList"/></returns>
-		Public Function Clone() As CimInstanceList
-			Dim ClonedList As New CimInstanceList
+		''' <returns><see cref="CimInstanceCollection"/></returns>
+		Public Function Clone() As CimInstanceCollection
+			Dim ClonedList As New CimInstanceCollection
 			For Each Instance As CimInstance In Me
 				If Instance IsNot Nothing Then
 					ClonedList.Add(Instance.Clone)
@@ -485,12 +485,12 @@ Namespace CIMitar
 	End Class
 
 	''' <summary>
-	''' A base class for CIM operations that return <see cref="CimInstanceList"/>
+	''' A base class for CIM operations that return <see cref="CimInstanceCollection"/>
 	''' </summary>
 	Public MustInherit Class CimAsyncInstancesController
-		Inherits CimAsyncOperator(Of CimInstance, CimInstanceList)
+		Inherits CimAsyncOperator(Of CimInstance, CimInstanceCollection)
 
-		Private ReadOnly Instances As New CimInstanceList
+		Private ReadOnly Instances As New CimInstanceCollection
 
 		Protected Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
 			MyBase.New(Session, [Namespace])
@@ -499,7 +499,7 @@ Namespace CIMitar
 		''' <summary>
 		''' Refreshes all instances in <see cref="Instances"/>
 		''' </summary>
-		Public Async Function RefreshAsync() As Task(Of CimInstanceList)
+		Public Async Function RefreshAsync() As Task(Of CimInstanceCollection)
 			If Instances IsNot Nothing AndAlso Instances.Count > 0 Then
 				Dim RefreshController As New CimAsyncRefreshInstanceOperator(Session)
 				For i As Integer = 0 To Instances.Count - 1
@@ -537,7 +537,7 @@ Namespace CIMitar
 		Public Property ClassName As String
 
 		''' <summary>
-		''' Creates a new <see cref="CimInstanceList"/> of all instances of the specified CIM class
+		''' Creates a new <see cref="CimInstanceCollection"/> of all instances of the specified CIM class
 		''' </summary>
 		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
 		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
@@ -553,7 +553,7 @@ Namespace CIMitar
 	End Class
 
 	''' <summary>
-	''' Executes a WQL query and returns a <see cref="CimInstanceList"/> with the results
+	''' Executes a WQL query and returns a <see cref="CimInstanceCollection"/> with the results
 	''' </summary>
 	Public Class CimAsyncQueryInstancesController
 		Inherits CimAsyncInstancesController
@@ -718,8 +718,8 @@ Namespace CIMitar
 	Public Class CimSubscriptionController
 		Inherits CimOperatorBase(Of CimSubscriptionResult, CimSubscriptionResult)
 
-		Private ReadOnly ErrorCallback As Action(Of CimException)
 		Private ReadOnly ResultCallback As Action(Of CimSubscriptionResult)
+		Private ReadOnly ErrorCallback As Action(Of CimException)
 
 		''' <summary>
 		''' Complete text of the query that initiates the subscriber
@@ -732,8 +732,24 @@ Namespace CIMitar
 		''' </summary>
 		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
 		''' <param name="[Namespace]">The CIM namespace for the activity to operate in.</param>
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace)
+		''' <param name="ResultCallbackAction">Callback function for results</param>
+		''' <param name="ErrorCallbackAction">Callback function for CIM errors</param>
+		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException))
 			MyBase.New(Session, [Namespace])
+			ResultCallback = ResultCallbackAction
+			ErrorCallback = ErrorCallbackAction
+		End Sub
+
+		''' <summary>
+		''' Creates a new CIM subscriber in the default namespace (root/CIMV2)
+		''' </summary>
+		''' <param name="Session">An existing CIM session to the local or a remote computer.</param>
+		''' <param name="ResultCallbackAction">Callback function for results</param>
+		''' <param name="ErrorCallbackAction">Callback function for CIM errors</param>
+		Public Sub New(ByVal Session As CimSession, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException))
+			MyBase.New(Session, DefaultNamespace)
+			ResultCallback = ResultCallbackAction
+			ErrorCallback = ErrorCallbackAction
 		End Sub
 
 		Public Sub Start()
@@ -793,8 +809,8 @@ Namespace CIMitar
 		Public Property QueryInterval As UInteger = 1
 		Public Property WatchType As IndicationType
 
-		Protected Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Hierarchy)
-			MyBase.New(Session, [Namespace])
+		Protected Sub New(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal WatchCategory As Hierarchy, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException))
+			MyBase.New(Session, [Namespace], ResultCallbackAction, ErrorCallbackAction)
 			Me.WatchedClassName = WatchedClassName
 			Me.WatchHierarchy = WatchCategory
 			Me.WatchType = WatchType
@@ -809,14 +825,14 @@ Namespace CIMitar
 		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
 		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
 		''' <returns></returns>
-		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI) As InstanceIndicationController
+		Public Shared Function IndicationControllerFactory(ByVal Session As CimSession, ByVal WatchType As IndicationType, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI) As InstanceIndicationController
 			Select Case WatchType
 				Case IndicationType.Creation
-					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+					Return New InstanceCreationController(Session, [Namespace], WatchedClassName, ResultCallbackAction, ErrorCallbackAction, WatchHierarchy)
 				Case IndicationType.Deletion
-					Return New InstanceDeletionController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+					Return New InstanceDeletionController(Session, [Namespace], WatchedClassName, ResultCallbackAction, ErrorCallbackAction, WatchHierarchy)
 				Case Else ' modification
-					Return New InstanceModificationController(Session, [Namespace], WatchedClassName, WatchHierarchy)
+					Return New InstanceModificationController(Session, [Namespace], WatchedClassName, ResultCallbackAction, ErrorCallbackAction, WatchHierarchy)
 			End Select
 		End Function
 
@@ -851,8 +867,8 @@ Namespace CIMitar
 		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
 		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
 		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
-			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchHierarchy)
+		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
 	End Class
 
@@ -870,8 +886,8 @@ Namespace CIMitar
 		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
 		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
 		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
-			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchHierarchy)
+		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
 	End Class
 
@@ -887,10 +903,10 @@ Namespace CIMitar
 		''' <param name="Session">The <see cref="CimSession"/> in which to create the watcher</param>
 		''' <param name="[Namespace]">The CIM namespace that contains the target class name</param>
 		''' <param name="WatchedClassName">The CIM class name the indication object will watch</param>
-		''' <param name="WatchCategory">Use indications from the WMI or CIM hierarchy</param>
+		''' <param name="WatchHierarchy">Use indications from the WMI or CIM hierarchy</param>
 		''' <remarks>The CIM hierarchy sometimes generates unresolvable "InvalidProperty" errors</remarks>
-		Public Sub New(ByVal Session As CimSession, Optional ByVal [Namespace] As String = DefaultNamespace, Optional ByVal WatchedClassName As String = "", Optional ByVal WatchCategory As Hierarchy = Hierarchy.WMI)
-			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchCategory)
+		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
+			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
 	End Class
 End Namespace

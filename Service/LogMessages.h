@@ -91,6 +91,15 @@
 //
 #define CATEGORY_CHECKPOINT              ((WORD)6L)
 
+//
+// MessageId: CATEGORY_CIM_ERROR
+//
+// MessageText:
+//
+// CIM/WMI Error
+//
+#define CATEGORY_CIM_ERROR               ((WORD)7L)
+
 // ************
 // Module Names
 // ************
@@ -434,6 +443,15 @@
 //
 #define SUBTEMPLATE_VIRTUAL_MACHINE_BOOT_ATTEMPT ((WORD)713L)
 
+//
+// MessageId: SUBTEMPLATE_MODULE
+//
+// MessageText:
+//
+// Module:%0
+//
+#define SUBTEMPLATE_MODULE               ((WORD)714L)
+
 // ********
 // Messages
 // ********
@@ -459,11 +477,24 @@
 // MessageText:
 //
 // An unexpected error occurred.
-// Module: %1
+// %%714 %1
 // %%707 %2
 // %%708 %3
 //
 #define MODULE_ERROR                     ((WORD)1001L)
+
+// 1: Error message
+// 2: Module name
+//
+// MessageId: CIM_ERROR
+//
+// MessageText:
+//
+// An error occurred in the CIM/WMI subsystem.
+// %%707 %1
+// %%714 %2
+//
+#define CIM_ERROR                        ((WORD)1002L)
 
 // 1: Registry path
 // 2: Error message
@@ -622,12 +653,14 @@
 #define CHECKPOINT_ACTION_FAIL           ((WORD)4002L)
 
 // 1: Message as input
+// 2: Module name
 //
 // MessageId: DEBUG_MESSAGE_GENERIC
 //
 // MessageText:
 //
 // %1
+// %%714 %2
 //
 #define DEBUG_MESSAGE_GENERIC            ((WORD)9000L)
 

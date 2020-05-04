@@ -1,32 +1,49 @@
 ﻿Imports Microsoft.Management.Infrastructure
 
+''' <summary>
+''' Use for modules that run full-time
+''' </summary>
+Public Interface IRunningModule
+	Sub Start()
+
+	ReadOnly Property IsRunning As Boolean
+
+	Sub [Stop]()
+End Interface
+
 Public MustInherit Class ModuleBase
-	Protected Sub New(DebugMessageAction As Action(Of String))
-		LogDebugMessage = DebugMessageAction
+	Protected Sub New(ByVal ModuleLogController As IModuleLogger)
+		GenericLogger = ModuleLogController
 	End Sub
-	Public MustOverride Property ModuleName As String
+	Public MustOverride ReadOnly Property ModuleName As String
 
-	Public MustOverride ReadOnly Property IsRunning As Boolean
+	Private GenericLogger As IModuleLogger
 
-	Public MustOverride Sub Start()
+	Protected Sub ReportError(ByVal [Error] As Exception)
+		GenericLogger.LogModuleError(ModuleName, [Error])
+	End Sub
 
-	Public MustOverride Sub [Stop]()
+	Protected Sub ReportError(ByVal [Error] As CimException)
+		GenericLogger.LogCimError([Error], ModuleName)
+	End Sub
 
-	Protected ReadOnly LogDebugMessage As Action(Of String)
+	Protected Sub ReportDebugMessage(ByVal Message As String)
+		GenericLogger.LogDebugMessageGeneric(Message, ModuleName)
+	End Sub
 End Class
 
 Public MustInherit Class ModuleWithCimBase
 	Inherits ModuleBase
 
-	Private ReadOnly Session As CimSession
+	Protected ReadOnly Session As CimSession
 
-	Protected Sub New(ByVal Session As CimSession, ByVal DebugMessageAction As Action(Of String))
-		MyBase.New(DebugMessageAction)
+	Protected Sub New(ByVal Session As CimSession, ByVal ModuleLogController As IModuleLogger)
+		MyBase.New(ModuleLogController)
 		Me.Session = Session
 	End Sub
 End Class
 
-Partial Public Class ModuleController
+Public Class ModuleController
 	Public Shared Function Start(ByVal MainService As HyperViveService) As ModuleController
 		If ControllerInstance Is Nothing Then
 			ControllerInstance = New ModuleController(MainService)

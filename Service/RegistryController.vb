@@ -1,25 +1,15 @@
-﻿Imports HyperVive.CIMitar
+﻿Imports System.IO
+Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 Imports Microsoft.Win32
-
-Public Module RegistryEvents
-	Public Class RegistryValueChangedEventArgs
-		Public Property Hive As String
-		Public Property KeyPath As String
-		Public Property ValueName As String
-		Public Property Value As Object
-	End Class
-End Module
 
 ''' <summary>
 ''' Retrieves a registry KVP value and watches it for changes.
 ''' </summary>
 Public Class RegistryController
+	Inherits ModuleWithCimBase
+	Implements IRunningModule
 	Implements IDisposable
-
-	Public Event RegistryValueChanged(ByVal sender As Object, ByVal e As RegistryValueChangedEventArgs)
-	Public Event RegistryAccessError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
-	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
 
 	''' <summary>
 	''' The root registry key that contains the desired subkey
@@ -40,7 +30,7 @@ Public Class RegistryController
 	''' </summary>
 	''' <example>"SYSTEM\CurrentControlSet\Services\HyperVive"</example>
 	''' <returns><see cref="String"/></returns>
-	Public Property KeyPath As String
+	Public Property KeySubPath As String
 	''' <summary>
 	''' Name of the KVP that owns the target value
 	''' </summary>
@@ -52,7 +42,53 @@ Public Class RegistryController
 	''' <returns><see cref="RegistryValueKind"/></returns>
 	Public ReadOnly Property ValueKind As RegistryValueKind = RegistryValueKind.String
 
+	Public ReadOnly Property KeyFullPath As String
+		Get
+			Return Path.Combine(RootRegistry.Name, KeySubPath)
+		End Get
+	End Property
+
+	''' <summary>
+	''' Creates a new registry value watcher
+	''' </summary>
+	''' <param name="Session"><see cref="CimSession"/> for the local system</param>
+	''' <remarks>Will not operate on remote sessions</remarks>
+	Public Sub New(ByVal Session As CimSession, ByVal ReportValueChangeAction As Action, ByVal GenericLogController As IModuleLogger, ByVal RegistryLogController As IRegistryLogger)
+		MyBase.New(Session, GenericLogController)
+		ReportValueChange = ReportValueChangeAction
+		RegistryLogger = RegistryLogController
+	End Sub
+
+	''' <summary>
+	''' Starts the value watcher
+	''' </summary>
+	Public Sub Start() Implements IRunningModule.Start
+		ReadValue()
+		ValueWatcher = New CimSubscriptionController(Session, AddressOf ReadValue, AddressOf ReportError) With {
+			.[Namespace] = CimNamespaceRootDefault,
+			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeySubPath), ValueName)
+		}
+		ValueWatcher.Start()
+	End Sub
+
+	Public ReadOnly Property IsRunning As Boolean Implements IRunningModule.IsRunning
+		Get
+			Return ValueWatcher.IsRunning
+		End Get
+	End Property
+
+	''' <summary>
+	''' Stops the value watcher
+	''' </summary>
+	Public Sub [Stop]() Implements IRunningModule.Stop
+		ValueWatcher?.Cancel()
+		ValueWatcher?.Dispose()
+	End Sub
+
 	Private _Value As Object = 0
+
+	Private ReportValueChange As Action
+	Private RegistryLogger As IRegistryLogger
 
 	''' <summary>
 	''' Current value of the KVP
@@ -61,76 +97,40 @@ Public Class RegistryController
 	''' <returns><see cref="Object"/></returns>
 	Public ReadOnly Property Value As Object
 		Get
-			If ValueWatcher Is Nothing OrElse Not ValueWatcher.HasStarted Then
-				UpdateKeyValue()
+			If ValueWatcher Is Nothing OrElse Not ValueWatcher.IsRunning Then
+				ReadValue()
 			End If
 			Return _Value
 		End Get
 	End Property
 
-	Private Session As CimSession
-	Private Const ModuleName As String = "Registry"
-	Private WithEvents ValueWatcher As CimSubscriptionController
-	Private Const MissingRegistryKVPTemplate As String = "Registry KVP ""{0}"" not found at ""{1}"", retaining current value ""{2}"""
-
-	Private Sub ProcessUpdatedValue(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles ValueWatcher.EventReceived
-		e.SubscribedEvent.Dispose()
-		UpdateKeyValue()
-		RaiseEvent RegistryValueChanged(Me, New RegistryValueChangedEventArgs With {.Hive = RootRegistry.Name, .KeyPath = KeyPath, .ValueName = ValueName, .Value = Value})
-	End Sub
-
-	Private Sub WatcherErrorReceived(ByVal sender As Object, ByVal e As CimErrorEventArgs) Handles ValueWatcher.ErrorOccurred
-		e.ErrorInstance.Dispose()
-	End Sub
+	Public Overrides ReadOnly Property ModuleName As String = "Registry"
+	Private ValueWatcher As CimSubscriptionController
 
 	''' <summary>
-	''' Creates a new registry value watcher
+	''' Reads the KVP value from the registry
 	''' </summary>
-	''' <param name="Session"><see cref="CimSession"/> for the local system</param>
-	''' <remarks>Will not operate on remote sessions</remarks>
-	Public Sub New(ByRef Session As CimSession)
-		Me.Session = Session
-	End Sub
-
-	''' <summary>
-	''' Starts the value watcher
-	''' </summary>
-	Public Sub Start()
-		UpdateKeyValue()
-		ValueWatcher = New CimSubscriptionController(Session) With {
-			.[Namespace] = CimNamespaceRootDefault,
-			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeyPath), ValueName)
-		}
-		ValueWatcher.Start()
-	End Sub
-
-	''' <summary>
-	''' Stops the value watcher
-	''' </summary>
-	Public Sub [Stop]()
-		ValueWatcher?.Cancel()
-		ValueWatcher?.Dispose()
-	End Sub
-
-	''' <summary>
-	''' Reads the key value from the registry
-	''' </summary>
-	Private Sub UpdateKeyValue()
-		Dim TargetKey As RegistryKey = RootRegistry.OpenSubKey(KeyPath)
+	Private Sub ReadValue(Optional ByVal SubscriptionNotification As CimSubscriptionResult = Nothing)
+		SubscriptionNotification?.Dispose()
+		Dim TargetKey As RegistryKey = Nothing
+		Try
+			TargetKey = RootRegistry.OpenSubKey(KeySubPath)
+		Catch ex As Exception
+			RegistryLogger.LogRegistryOpenKeyError(KeySubPath, ex)
+		End Try
 		If TargetKey IsNot Nothing Then
 			Try
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
+				ReportValueChange()
 			Catch ioex As IO.IOException
-				RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(MissingRegistryKVPTemplate, ValueName, KeyPath, _Value), EventIdDebugRegistryKVPNotFound))
+				RegistryLogger.LogDebugRegistryKVPNotFound(ValueName, KeyFullPath)
 			Catch ex As Exception
-				RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = ex, .EventId = EventIdErrorRegistryAccess})
+				RegistryLogger.LogRegistryAccessError(KeyFullPath, ex)
 			Finally
 				TargetKey?.Close()
 				TargetKey?.Dispose()
 			End Try
-		Else
-			RaiseEvent RegistryAccessError(Me, New ModuleExceptionEventArgs With {.ModuleName = ModuleName, .[Error] = New Exception(String.Format("Could not open registry at {0}", KeyPath)), .EventId = EventIdErrorRegistryKeyOpen})
 		End If
 	End Sub
 

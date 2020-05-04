@@ -43,6 +43,12 @@ Language=English
 Checkpoint
 .
 
+MessageId=7
+SymbolicName=CATEGORY_CIM_ERROR
+Language=English
+CIM/WMI Error
+.
+
 ;// ************
 ;// Module Names
 ;// ************
@@ -278,6 +284,12 @@ Language=English
 %%600 boot-up attempt%0
 .
 
+MessageId=714
+SymbolicName=SUBTEMPLATE_MODULE
+Language=English
+Module:%0
+.
+
 ;// ********
 ;// Messages
 ;// ********
@@ -299,9 +311,19 @@ MessageId=1001
 SymbolicName=MODULE_ERROR
 Language=English
 An unexpected error occurred.
-Module: %1
+%%714 %1
 %%707 %2
 %%708 %3
+.
+
+;// 1: Error message
+;// 2: Module name
+MessageId=1002
+SymbolicName=CIM_ERROR
+Language=English
+An error occurred in the CIM/WMI subsystem.
+%%707 %1
+%%714 %2
 .
 
 ;// 1: Registry path
@@ -435,10 +457,12 @@ Language=English
 .
 
 ;// 1: Message as input
+;// 2: Module name
 MessageId=9000
 SymbolicName=DEBUG_MESSAGE_GENERIC
 Language=English
 %1
+%%714 %2
 .
 
 ;// 1: Debug mode switch setting

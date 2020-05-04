@@ -5,11 +5,12 @@ Imports System.Security.Principal
 
 Public Class HyperViveService
 	Private LocalCimSession As CimSession
-	Private WithEvents DebugModeSettingReader As RegistryController
-	Private WithEvents AdapterInventory As VMNetAdapterInventory
-	Private WithEvents WOLListener As WakeOnLanListener
-	Private WithEvents VMStarter As VMStartController
-	Private WithEvents CheckpointWatcher As CheckpointJobWatcher
+
+	Private DebugModeSettingReader As RegistryController
+	Private AdapterInventory As VMNetAdapterInventory
+	Private WOLListener As WakeOnLanListener
+	Private VMStarter As VMStartController
+	Private CheckpointWatcher As CheckpointJobWatcher
 
 	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
 	Private Const ElevationError As String = "Must run as an elevated user"
@@ -26,7 +27,7 @@ Public Class HyperViveService
 		AddHandler AppDomain.CurrentDomain.UnhandledException, AddressOf AppErrorReceived
 		If New WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator) Then
 			LocalCimSession = CimSession.Create(Nothing)
-			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeyPath = ServiceRegistryPath, .ValueName = "DebugMode"}
+			DebugModeSettingReader = New RegistryController(LocalCimSession) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeySubPath = ServiceRegistryPath, .ValueName = "DebugMode"}
 			UpdateDebugMode(Nothing, Nothing)
 			DebugModeSettingReader.Start()
 			AdapterInventory = New VMNetAdapterInventory(LocalCimSession)
@@ -80,7 +81,7 @@ Public Class HyperViveService
 	Private Sub MagicPacketReceived(ByVal sender As Object, ByVal e As WOLEvents.MagicPacketReceivedEventArgs) Handles WOLListener.MagicPacketReceived
 		WriteDebugMessage(Me, New DebugMessageEventArgs(String.Format(WolReceivedTemplate, e.SenderIP.ToString, e.MacAddress), EventIdMagicPacketReceived))
 		Dim VmIDs As List(Of String) = AdapterInventory.GetVmIDFromMac(e.MacAddress)
-		VMStarter.Start(e.MacAddress, VmIDs, e.SenderIP.ToString)
+		VMStarter.StartVM(e.MacAddress, VmIDs, e.SenderIP.ToString)
 	End Sub
 
 	Private Sub WriteDebugMessage(ByVal sender As Object, ByVal e As DebugMessageEventArgs) Handles WOLListener.DebugMessageGenerated, AdapterInventory.DebugMessageGenerated, VMStarter.DebugMessageGenerated, DebugModeSettingReader.DebugMessageGenerated, CheckpointWatcher.DebugMessageGenerated
