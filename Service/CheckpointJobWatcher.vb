@@ -17,14 +17,20 @@ Public Class CheckpointJobWatcher
 	Public Sub New(ByVal Session As CimSession, ByVal ModuleLogger As IModuleLogger, ByVal CheckpointLogger As ICheckpointLogger)
 		MyBase.New(Session, ModuleLogger)
 		Me.CheckpointLogger = CheckpointLogger
-		JobSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, ClassNameVirtualizationJob)
+		JobSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, ClassNameVirtualizationJob, AddressOf ProcessJob, AddressOf ReportError)
 	End Sub
 
-	Public Sub Start()
+	Public Sub Start() Implements IRunningModule.Start
 		JobSubscriber.Start()
 	End Sub
 
-	Public Sub Cancel()
+	Public ReadOnly Property IsRunning As Boolean Implements IRunningModule.IsRunning
+		Get
+			Return JobSubscriber.IsRunning
+		End Get
+	End Property
+
+	Public Sub [Stop]() Implements IRunningModule.Stop
 		JobSubscriber.Cancel()
 	End Sub
 
@@ -62,7 +68,11 @@ Public Class CheckpointJobWatcher
 		''' <returns></returns>
 		Public Property JobTypeName As String
 
-		Public Property JobState As UShort
+		''' <summary>
+		''' Current state of the job
+		''' </summary>
+		''' <returns><see cref="UShort"/></returns>
+		Public Property JobState As UShort = 0
 
 		''' <summary>
 		''' The user name that initiated the job.
@@ -97,25 +107,13 @@ Public Class CheckpointJobWatcher
 	End Class
 
 	''' <summary>
-	''' Handles the creation of new Msvm_ConcreteJob objects.
-	''' </summary>
-	''' <param name="sender"></param>
-	''' <param name="e"></param>
-	''' <remarks>Passes off the job as quickly as possible to avoid holding up the eventing system.</remarks>
-	Private Sub JobHandler(ByVal sender As Object, ByVal e As CimSubscribedEventReceivedArgs) Handles JobSubscriber.EventReceived
-		Dim Session As CimSession = e.Session
-		Dim JobInstance As CimInstance = e.SubscribedEvent.GetSourceInstance.Clone
-		e.Dispose()
-		Task.Run(Sub() ProcessJob(JobInstance))
-	End Sub
-
-	''' <summary>
 	''' Receives newly-created Msvm_ConcreteJob items. If the job is checkpoint-related, watches it to completion.
 	''' </summary>
-	''' <param name="JobInstance">The <see cref="CimInstance"/> that represents the Msvm_ConcreteJob to process.</param>
-	Private Sub ProcessJob(ByRef JobInstance As CimInstance)
+	''' <param name="Result">A <see cref="CimSubscriptionResult"/> that contains the Msvm_ConcreteJob to process.</param>
+	Private Async Sub ProcessJob(ByVal Result As CimSubscriptionResult)
 		Dim Report As New CheckpointActionReport
-		Using JobInstance
+		Using Result
+			Dim JobInstance As CimInstance = Result.GetSourceInstance
 			Report.JobType = JobInstance.InstancePropertyUInt16(PropertyNameJobType)
 			Report.JobInstanceID = JobInstance.InstancePropertyString(PropertyNameInstanceID)
 			CheckpointLogger.LogDebugVirtualizationJobReceived(Report.JobType, Report.JobInstanceID)
@@ -141,16 +139,17 @@ Public Class CheckpointJobWatcher
 							With VMInstances.First
 								Report.VMID = .InstancePropertyString(PropertyNameName)
 								Report.VMName = .InstancePropertyString(PropertyNameElementName)
+								Report.JobState = .InstancePropertyUInt16(PropertyNameJobState)
 							End With
 						End If
 					End Using
 				End Using
 			End Using
-			CheckpointLogger.LogCheckpointActionReport(Report.JobTypeName, Report.VMName, Report.UserName, Report.VMID, Report.JobInstanceID, False, 0)
-			Using CheckpointCompletionWatcher As Task(Of CimInstance) = VirtualizationJobCompletionController.WatchAsync(Session, Report.JobInstanceID)
-				CheckpointCompletionWatcher.Wait()
-				Report.IsCompleted = True
-				Using CompletedInstance As CimInstance = CheckpointCompletionWatcher.Result
+			Report.IsCompleted = Report.JobState < JobStates.Completed
+			WriteCheckpointAction(Report)
+			If Report.IsCompleted Then
+				Using CompletedInstance As CimInstance = Await VirtualizationJobCompletionController.WatchAsync(Session, Report.JobInstanceID)
+					Report.IsCompleted = True
 					If CompletedInstance IsNot Nothing Then
 						Report.ResultCode = CompletedInstance.InstancePropertyUInt16(PropertyNameErrorCode)
 						Report.ResultMessage = CompletedInstance.InstancePropertyString(PropertyNameJobStatus)
@@ -159,19 +158,17 @@ Public Class CheckpointJobWatcher
 						Report.ResultMessage = StrUnknownError
 					End If
 				End Using
-			End Using
-			CheckpointLogger.LogCheckpointActionReport(Report.JobTypeName, Report.VMName, Report.UserName, Report.VMID, Report.JobInstanceID, True, Report.ResultCode, Report.ResultMessage)
+				WriteCheckpointAction(Report)
+			End If
 		End Using
+	End Sub
+
+	Private Sub WriteCheckpointAction(ByVal Report As CheckpointActionReport)
+		CheckpointLogger.LogCheckpointActionReport(Report.JobTypeName, Report.VMName, Report.UserName, Report.VMID, Report.JobInstanceID, Report.IsCompleted, Report.ResultCode, Report.ResultMessage)
 	End Sub
 
 #Region "IDisposable Support"
 	Private disposedValue As Boolean
-
-	Public Overrides ReadOnly Property ModuleName As String
-		Get
-			Throw New NotImplementedException()
-		End Get
-	End Property
 
 	Protected Overridable Sub Dispose(disposing As Boolean)
 		If Not disposedValue Then

@@ -326,6 +326,12 @@ An error occurred in the CIM/WMI subsystem.
 %%714 %2
 .
 
+MessageId=1003
+SymbolicName=ELEVATION_ERROR
+Language=English
+Must run as an elevated user.
+.
+
 ;// 1: Registry path
 ;// 2: Error message
 ;// 3: Error type

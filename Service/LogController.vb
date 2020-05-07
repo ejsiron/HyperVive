@@ -1,4 +1,4 @@
-﻿Imports System.Windows.Forms
+﻿Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 
 Public Interface IModuleLogger
@@ -51,12 +51,9 @@ Public Class LogController
 	Implements IMagicPacketLogger
 	Implements ICheckpointLogger
 
-	Private Shared ControllerInstance As LogController
-	Private Shared ServiceInstance As HyperViveService
-
-	Public Shared Function GetControllerInstance(ByVal OwningService As HyperViveService) As LogController
+	Public Shared Function GetControllerInstance(ByVal LocalCimSession As CimSession, ByVal OwningService As HyperViveService) As LogController
 		If Not IsValid Then
-			ControllerInstance = New LogController(OwningService)
+			ControllerInstance = New LogController(LocalCimSession, OwningService)
 		End If
 		Return ControllerInstance
 	End Function
@@ -68,16 +65,26 @@ Public Class LogController
 	End Property
 
 	Public Shared Sub CloseAll()
+		DebugModeSettingController.Dispose()
+		DebugModeSettingController = Nothing
 		ServiceInstance = Nothing
 		ControllerInstance = Nothing
 	End Sub
 
-	Private Sub New(ByVal OwningService As HyperViveService)
+	Private Sub New(ByVal LocalCimSession As CimSession, ByVal OwningService As HyperViveService)
+		Session = LocalCimSession
 		ServiceInstance = OwningService
+		DebugModeSettingController = New RegistryController(Session, AddressOf UpdateSettingMode, Me, Me)
+		DebugModeSettingController.Start()
 	End Sub
 
 	Private Shared ReadOnly EventTemplate As New EventInstance(0L, 0)
 	Private Shared ReadOnly EventLock As New Object
+
+	Private Shared Session As CimSession
+	Private Shared ControllerInstance As LogController
+	Private Shared ServiceInstance As HyperViveService
+	Private Shared DebugModeSettingController As RegistryController
 
 	Private Const EventCategoryApplicationError As Integer = 1
 	Private Const EventCategoryModuleError As Integer = 2
@@ -89,6 +96,7 @@ Public Class LogController
 	Private Const EventIdApplicationHaltError As Integer = 1000
 	Private Const EventIdModuleError As Integer = 1001
 	Private Const EventIdCimError As Integer = 1002
+	Private Const EventIdElevationError As Integer = 1003
 	Private Const EventIdRegistryAccessError As Integer = 1011
 	Private Const EventIdRegistryOpenKeyError As Integer = 1012
 	Private Const EventIdInvalidVirtualAdapter As Integer = 1021
@@ -134,6 +142,10 @@ Public Class LogController
 		[Error].Dispose()
 	End Sub
 
+	Public Sub LogElevationError()
+		WriteEventLogEntry(EventIdElevationError, EventCategoryApplicationError, Array.Empty(Of Object), EventLogEntryType.Error)
+	End Sub
+
 	Public Sub LogRegistryAccessError(ByVal RegistryPath As String, ByVal [Error] As Exception) Implements IRegistryLogger.LogRegistryAccessError
 		WriteEventLogEntry(EventIdRegistryAccessError, EventCategoryModuleError, {RegistryPath, [Error].Message, [Error].GetType.FullName}, EventLogEntryType.Error)
 	End Sub
@@ -167,10 +179,8 @@ Public Class LogController
 		Dim ParametersList As List(Of Object) = New List(Of Object)({ActionName, VMName, UserName, VMID, JobID})
 		If Completed Then
 			EventId = CLng(IIf(ResultCode = 0, EventIdCheckpointActionSuccess, EventIdCheckpointActionFail))
-		ElseIf ResultCode = 4096 Then
-			ResultCode = 0 ' 4096 for a non-completed job means that it's still in-progress
 		End If
-		If ResultCode <> 0 Then
+		If Not {0, 4096}.Contains(ResultCode) Then   ' 0 = Success, 4096 = job started
 			ParametersList.AddRange({ResultCode, ResultMessage})
 			EntryType = EventLogEntryType.Error
 		End If
@@ -178,7 +188,9 @@ Public Class LogController
 	End Sub
 
 	Private Sub LogBaseDebugMessage(ByVal EventId As Long, ByVal Parameters As Object())
-		WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
+		If DebugMode Then
+			WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
+		End If
 	End Sub
 
 	Public Sub LogDebugMessageGeneric(ByVal Message As String, ByVal ModuleName As String) Implements IModuleLogger.LogDebugMessageGeneric
@@ -233,5 +245,16 @@ Public Class LogController
 
 	Public Sub LogDebugVirtualizationJobReceived(ByVal TypeCode As Integer, ByVal JobID As String) Implements ICheckpointLogger.LogDebugVirtualizationJobReceived
 		LogBaseDebugMessage(EventIdDebugVirtualizationJobReceived, {TypeCode, JobID})
+	End Sub
+
+	Private DebugMode As Boolean = False
+
+	Private Sub UpdateSettingMode()
+		Try
+			DebugMode = CBool(DebugModeSettingController.Value)
+		Catch ex As Exception
+			DebugMode = False
+		End Try
+		LogDebugModeChanged(DebugMode)
 	End Sub
 End Class
