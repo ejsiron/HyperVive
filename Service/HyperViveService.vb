@@ -2,13 +2,10 @@
 	Private ModuleController As ModuleController
 
 	Private Const ServiceRegistryPathTemplate As String = "SYSTEM\CurrentControlSet\Services\{0}"
-	Private Const ElevationError As String = "Must run as an elevated user"
+	Public ReadOnly Property ServiceRegistryRootPath As String = String.Format(ServiceRegistryPathTemplate, ServiceName)
 
-	Private ReadOnly Property ServiceRegistryPath As String
-		Get
-			Return String.Format(ServiceRegistryPathTemplate, ServiceName)
-		End Get
-	End Property
+
+	Private Const ElevationError As String = "Must run as an elevated user"
 
 	Private DebugMode As Boolean = False
 

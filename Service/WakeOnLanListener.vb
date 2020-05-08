@@ -1,4 +1,5 @@
-﻿Imports System.Net
+﻿Imports Microsoft.Management.Infrastructure
+Imports System.Net
 Imports System.Net.Sockets
 Imports System.Threading
 
@@ -15,9 +16,10 @@ Public Class WakeOnLanListener
 		LegacyWOL = 7
 	End Enum
 
-	Public Sub New(ByVal ModuleLogger As IModuleLogger, ByVal MagicPacketLogger As IMagicPacketLogger)
+	Public Sub New(ByVal ModuleLogger As IModuleLogger, ByVal MagicPacketLogger As IMagicPacketLogger, ByVal PacketProcessorCallback As Action(Of String, String))
 		MyBase.New(ModuleLogger)
 		Me.MagicPacketLogger = MagicPacketLogger
+		PacketProcessor = PacketProcessorCallback
 	End Sub
 
 	''' <summary>
@@ -46,7 +48,7 @@ Public Class WakeOnLanListener
 			End Try
 			ReceivedMac = ExtractMACFromMagicPacket(ReceivedData.Buffer)
 			If Not String.IsNullOrEmpty(ReceivedMac) Then
-				ProcessReceivedMAC(ReceivedMac, ReceivedData.RemoteEndPoint.Address)
+				ProcessReceivedMAC(ReceivedMac, ReceivedData.RemoteEndPoint.Address.ToString)
 			End If
 		End While
 		_IsRunning = False
@@ -75,6 +77,7 @@ Public Class WakeOnLanListener
 	Private Canceller As CancellationTokenSource = Nothing
 	Private ListLock As New Object
 	Private RecentMACs As List(Of String)
+	Private PacketProcessor As Action(Of String, String)  ' MAC, requesting IP
 
 	Private Function ExtractMACFromMagicPacket(ByRef DataBuffer As Byte()) As String
 		' magic packet contents should be 102 bytes with an optional password
@@ -105,14 +108,15 @@ Public Class WakeOnLanListener
 		Return TargetMac
 	End Function
 
-	Private Sub ProcessReceivedMAC(ByVal MAC As String, ByVal SenderIP As IPAddress)
+	Private Sub ProcessReceivedMAC(ByVal MAC As String, ByVal SenderIP As String)
 		SyncLock ListLock
 			If RecentMACs?.Contains(MAC) Then
 				MagicPacketLogger.LogDebugMagicPacketDuplicate(MAC)
 				Return
 			End If
 
-			MagicPacketLogger.LogMagicPacketProcessed(MAC, SenderIP.ToString)
+			MagicPacketLogger.LogMagicPacketProcessed(MAC, SenderIP)
+			PacketProcessor?(MAC, SenderIP)
 
 			' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
 			' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time

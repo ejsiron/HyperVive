@@ -1,4 +1,5 @@
 ﻿Imports Microsoft.Management.Infrastructure
+Imports System.Runtime.CompilerServices
 Imports System.Security.Principal
 
 ''' <summary>
@@ -45,55 +46,68 @@ Public MustInherit Class ModuleWithCimBase
 End Class
 
 Public Class ModuleController
-	Public Shared Function Start(ByVal MainService As HyperViveService) As ModuleController
-		If Not IsRunning() Then
-			LocalCimSession = CimSession.Create(Nothing)
-			LogControllerInstance = LogController.GetControllerInstance(LocalCimSession, MainService)
-			AddHandler AppDomain.CurrentDomain.UnhandledException, AddressOf OnAppError
-			If New WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator) Then
-				ModuleControllerInstance = New ModuleController(MainService)
-				AdapterInventoryModule = New VMNetAdapterInventory(LocalCimSession, LogControllerInstance, LogControllerInstance)
-				VMStarterModule = New VMStartController(LocalCimSession, LogControllerInstance, LogControllerInstance)
-				WOLListenerModule = New WakeOnLanListener(LogControllerInstance, LogControllerInstance)
-				WOLListenerModule.Start()
-				CheckpointWatcherModule = New CheckpointJobWatcher(LocalCimSession, LogControllerInstance, LogControllerInstance)
-				CheckpointWatcherModule.Start()
-			Else
-				LogControllerInstance.LogElevationError()
-				Service.Kill(5)
+	Public Function Start(ByVal MainService As HyperViveService) As ModuleController
+		SyncLock StateChangeLock
+			Service = MainService
+			If Not IsRunning() Then
+				LocalCimSession = CimSession.Create(Nothing)
+				LogControllerInstance = LogController.GetControllerInstance(LocalCimSession, MainService)
+				AddHandler AppDomain.CurrentDomain.UnhandledException, AddressOf OnAppError
+				If New WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator) Then
+					ModuleControllerInstance = New ModuleController(MainService)
+					AdapterInventoryModule = New VMNetAdapterInventory(LocalCimSession, LogControllerInstance, LogControllerInstance)
+					WOLListenerModule = New WakeOnLanListener(LogControllerInstance, LogControllerInstance, AddressOf ProcessMagicPacket)
+					CheckpointWatcherModule = New CheckpointJobWatcher(LocalCimSession, LogControllerInstance, LogControllerInstance)
+					WOLListenerModule.Start()
+					CheckpointWatcherModule.Start()
+				Else
+					LogControllerInstance.LogElevationError()
+					Service.Kill(5)
+				End If
 			End If
-		End If
-		Service = MainService
-		Return ModuleControllerInstance
+			Return ModuleControllerInstance
+		End SyncLock
 	End Function
 
 	Public Shared Function IsRunning() As Boolean
-		Return ModuleControllerInstance IsNot Nothing
+		SyncLock StateChangeLock
+			Return ModuleControllerInstance IsNot Nothing
+		End SyncLock
 	End Function
 
 	Public Shared Sub [Stop]()
-		LocalCimSession.Close()
-		LocalCimSession.Dispose()
-		If ModuleControllerInstance IsNot Nothing Then
+		SyncLock StateChangeLock
+			AdapterInventoryModule?.Dispose()
+			AdapterInventoryModule = Nothing
+			WOLListenerModule?.Dispose()
+			CheckpointWatcherModule?.Dispose()
+			LocalCimSession.Close()
+			LocalCimSession.Dispose()
 			ModuleControllerInstance = Nothing
-		End If
-		If LogController.IsValid Then
-			LogController.CloseAll()
-		End If
+			If LogController.IsValid Then
+				LogController.CloseAll()
+			End If
+		End SyncLock
 	End Sub
 
+	Private Shared ReadOnly StateChangeLock As New Object
 	Private Shared Service As HyperViveService
 	Private Shared LocalCimSession As CimSession
 	Private Shared ModuleControllerInstance As ModuleController = Nothing
 	Private Shared LogControllerInstance As LogController
 	Private Shared AdapterInventoryModule As VMNetAdapterInventory
-	Private Shared VMStarterModule As VMStartController
 	Private Shared WOLListenerModule As WakeOnLanListener
 	Private Shared CheckpointWatcherModule As CheckpointJobWatcher
 
 	Private Sub New(ByVal MainService As HyperViveService)
 		Service = MainService
 		LocalCimSession = CimSession.Create(Nothing)
+	End Sub
+
+	Private Sub ProcessMagicPacket(ByVal MAC As String, ByVal RequestorIP As String)
+		Dim VmIDs As List(Of String) = AdapterInventoryModule.GetVmIDFromMac(MAC)
+		Dim VMStarter As New VMStartController(LocalCimSession, LogControllerInstance, LogControllerInstance)
+		VMStarter.StartVM(MAC, VmIDs, RequestorIP)
 	End Sub
 
 	Private Shared Sub OnAppError(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)

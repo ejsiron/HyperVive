@@ -74,7 +74,7 @@ Public Class LogController
 	Private Sub New(ByVal LocalCimSession As CimSession, ByVal OwningService As HyperViveService)
 		Session = LocalCimSession
 		ServiceInstance = OwningService
-		DebugModeSettingController = New RegistryController(Session, AddressOf UpdateSettingMode, Me, Me)
+		DebugModeSettingController = New RegistryController(Session, AddressOf UpdateSettingMode, Me, Me) With {.RootRegistry = Microsoft.Win32.Registry.LocalMachine, .KeySubPath = ServiceInstance.ServiceRegistryRootPath, .ValueName = DebugModeKVPName}
 		DebugModeSettingController.Start()
 	End Sub
 
@@ -248,6 +248,8 @@ Public Class LogController
 	End Sub
 
 	Private DebugMode As Boolean = False
+
+	Private Const DebugModeKVPName As String = "DebugMode"
 
 	Private Sub UpdateSettingMode()
 		Try

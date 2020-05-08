@@ -154,8 +154,8 @@ Public Class CheckpointJobWatcher
 						Report.ResultCode = CompletedInstance.InstancePropertyUInt16(PropertyNameErrorCode)
 						Report.ResultMessage = CompletedInstance.InstancePropertyString(PropertyNameJobStatus)
 					Else
-						Report.ResultCode = USUnknownError
-						Report.ResultMessage = StrUnknownError
+						Report.ResultCode = ResultCodeUnknown
+						Report.ResultMessage = ResultMessageUnknown
 					End If
 				End Using
 				WriteCheckpointAction(Report)
@@ -166,6 +166,9 @@ Public Class CheckpointJobWatcher
 	Private Sub WriteCheckpointAction(ByVal Report As CheckpointActionReport)
 		CheckpointLogger.LogCheckpointActionReport(Report.JobTypeName, Report.VMName, Report.UserName, Report.VMID, Report.JobInstanceID, Report.IsCompleted, Report.ResultCode, Report.ResultMessage)
 	End Sub
+
+	Private Const ResultCodeUnknown As UShort = 9999
+	Private Const ResultMessageUnknown As String = "Unknown Error"
 
 #Region "IDisposable Support"
 	Private disposedValue As Boolean

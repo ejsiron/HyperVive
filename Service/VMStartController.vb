@@ -117,6 +117,6 @@ Public Class VMStartController
 				ResultText = CType(ResultCode, VirtualizationMethodErrors).ToString
 			End If
 		End If
-		VMStartLogger.LogVirtualMachineStart(Info.Name, Info.ID, Info.MacAddress, Info.SourceIP, ResultCode = 0, ResultCode, ResultText)
+		VMStartLogger?.LogVirtualMachineStart(Info.Name, Info.ID, Info.MacAddress, Info.SourceIP, ResultCode = 0, ResultCode, ResultText)
 	End Sub
 End Class
