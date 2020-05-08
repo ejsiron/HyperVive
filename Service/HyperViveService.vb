@@ -3,9 +3,11 @@
 
 	Protected Overrides Sub OnStart(ByVal args() As String)
 		ServiceModuleController = New ModuleController(Me)
+		ServiceModuleController.Start()
 	End Sub
 
 	Protected Overrides Sub OnStop()
+		ServiceModuleController.Stop()
 		LogController.CloseAll()
 	End Sub
 

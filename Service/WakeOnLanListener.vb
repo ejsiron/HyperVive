@@ -73,11 +73,11 @@ Public Class WakeOnLanListener
 	Public Property Port As Ports = Ports.DefaultWOL
 	Private Const MACWatchTimeoutSeconds As Integer = 5
 
-	Private MagicPacketLogger As IMagicPacketLogger
+	Private ReadOnly MagicPacketLogger As IMagicPacketLogger
 	Private Canceller As CancellationTokenSource = Nothing
-	Private ListLock As New Object
+	Private ReadOnly ListLock As New Object
 	Private RecentMACs As List(Of String)
-	Private PacketProcessor As Action(Of String, String)  ' MAC, requesting IP
+	Private ReadOnly PacketProcessor As Action(Of String, String)  ' MAC, requesting IP
 
 	Private Function ExtractMACFromMagicPacket(ByRef DataBuffer As Byte()) As String
 		' magic packet contents should be 102 bytes with an optional password

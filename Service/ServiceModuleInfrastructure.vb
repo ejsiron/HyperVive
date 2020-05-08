@@ -19,7 +19,7 @@ Public MustInherit Class ModuleBase
 	End Sub
 	Public MustOverride ReadOnly Property ModuleName As String
 
-	Private GenericLogger As IModuleLogger
+	Private ReadOnly GenericLogger As IModuleLogger
 
 	Protected Sub ReportError(ByVal [Error] As Exception)
 		GenericLogger.LogModuleError(ModuleName, [Error])
@@ -84,7 +84,7 @@ Public Class ModuleController
 		_IsRunning = False
 	End Sub
 
-	Private Service As HyperViveService
+	Private ReadOnly Service As HyperViveService
 	Private LocalCimSession As CimSession
 	Private LogControllerInstance As LogController
 	Private AdapterInventoryModule As VMNetAdapterInventory

@@ -92,7 +92,7 @@ Public Class VMStartController
 	Public Overrides ReadOnly Property ModuleName As String = "VM Starter"
 	Private Const DefaultFailureReason As String = "Code not recognized"
 
-	Private VMStartLogger As IVirtualMachineStartLogger
+	Private ReadOnly VMStartLogger As IVirtualMachineStartLogger
 
 	Private Shared Function ConvertVMListToQueryFilter(ByVal VmIDs As List(Of String)) As String
 		Dim ListEntries As New List(Of String)(VmIDs.Count)
