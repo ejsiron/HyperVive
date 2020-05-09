@@ -8,7 +8,7 @@
 
 	Protected Overrides Sub OnStop()
 		ServiceModuleController.Stop()
-		LogController.CloseAll()
+		ServiceModuleController = Nothing
 	End Sub
 
 	Public Sub Kill(ByVal ExitCode As Integer)

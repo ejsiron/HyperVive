@@ -59,6 +59,7 @@ Public Class ModuleController
 				AdapterInventoryModule = New VMNetAdapterInventory(LocalCimSession, LogControllerInstance, LogControllerInstance)
 				WOLListenerModule = New WakeOnLanListener(LogControllerInstance, LogControllerInstance, AddressOf ProcessMagicPacket)
 				CheckpointWatcherModule = New CheckpointJobWatcher(LocalCimSession, LogControllerInstance, LogControllerInstance)
+				AdapterInventoryModule.Start()
 				WOLListenerModule.Start()
 				CheckpointWatcherModule.Start()
 				_IsRunning = True
@@ -72,15 +73,13 @@ Public Class ModuleController
 	Public ReadOnly Property IsRunning As Boolean = False
 
 	Public Sub [Stop]()
-		AdapterInventoryModule?.Dispose()
-		AdapterInventoryModule = Nothing
-		WOLListenerModule?.Dispose()
 		CheckpointWatcherModule?.Dispose()
-		LocalCimSession.Close()
-		LocalCimSession.Dispose()
-		If LogController.IsValid Then
-			LogController.CloseAll()
-		End If
+		WOLListenerModule?.Dispose()
+		AdapterInventoryModule?.Dispose()
+		RemoveHandler AppDomain.CurrentDomain.UnhandledException, AddressOf OnAppError
+		LogController.CloseAll()
+		LocalCimSession?.Close()
+		LocalCimSession?.Dispose()
 		_IsRunning = False
 	End Sub
 
@@ -100,9 +99,9 @@ Public Class ModuleController
 	Private Sub OnAppError(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)
 		Dim UnknownError As Exception = CType(e.ExceptionObject, Exception)
 		LogControllerInstance.LogApplicationHaltError(UnknownError)
-		Service.Kill(CType(IIf(UnknownError.HResult = 0, -1, UnknownError.HResult), Integer))
-		If TypeOf UnknownError Is IDisposable Then   ' CIM exceptions are disposable
-			CType(UnknownError, IDisposable).Dispose()
+		If TypeOf e.ExceptionObject Is IDisposable Then   ' CIM exceptions are disposable
+			CType(e.ExceptionObject, IDisposable).Dispose()
 		End If
+		Service.Kill(CType(IIf(UnknownError.HResult = 0, -1, UnknownError.HResult), Integer))
 	End Sub
 End Class

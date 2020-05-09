@@ -496,6 +496,15 @@
 //
 #define CIM_ERROR                        ((WORD)1002L)
 
+//
+// MessageId: ELEVATION_ERROR
+//
+// MessageText:
+//
+// Must run as an elevated user.
+//
+#define ELEVATION_ERROR                  ((WORD)1003L)
+
 // 1: Registry path
 // 2: Error message
 // 3: Error type
@@ -538,6 +547,8 @@
 
 // No special errors at this time. Rolled up into 1001
 // MessageId=1022
+//Severity=Success
+//Facility=Application
 // SymbolicName=VIRTUAL_ADAPTER_SUBSCRIBER_ERROR
 // Virtual adapter subscriber received an error.
 // Type: %1
@@ -565,7 +576,7 @@
 //
 // MessageText:
 //
-// %713 %%606.
+// %%713 %%606.
 // %%700 %1
 // %%701 %2
 // %%600 %%702 %3

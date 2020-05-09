@@ -32,13 +32,6 @@ Public Class VMNetAdapterInventory
 	Public Sub New(ByVal Session As CimSession, ByVal ModuleLogger As IModuleLogger, ByVal VirtualNetAdapterLogger As IVirtualNetAdapterLogger)
 		MyBase.New(Session, ModuleLogger)
 		Me.VirtualNetAdapterLogger = VirtualNetAdapterLogger
-		SyntheticAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnNewAdapter, AddressOf ReportError)
-		SyntheticAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnChangeAdapter, AddressOf ReportError)
-		SyntheticAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnDeleteAdapter, AddressOf ReportError)
-		EmulatedAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnNewAdapter, AddressOf ReportError)
-		EmulatedAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnChangeAdapter, AddressOf ReportError)
-		EmulatedAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnDeleteAdapter, AddressOf ReportError)
-		Reset()
 	End Sub
 
 	''' <summary>
@@ -65,6 +58,13 @@ Public Class VMNetAdapterInventory
 			End Using
 		Next
 		VirtualNetAdapterLogger.LogDebugVirtualAdapterEnumeratedCount(CurrentAdapters.Count)
+
+		SyntheticAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnNewAdapter, AddressOf ReportError)
+		SyntheticAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnChangeAdapter, AddressOf ReportError)
+		SyntheticAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameSyntheticAdapterSettingData, AddressOf OnDeleteAdapter, AddressOf ReportError)
+		EmulatedAdapterSettingsCreateSubscriber = New InstanceCreationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnNewAdapter, AddressOf ReportError)
+		EmulatedAdapterSettingsChangeSubscriber = New InstanceModificationController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnChangeAdapter, AddressOf ReportError)
+		EmulatedAdapterSettingsDeleteSubscriber = New InstanceDeletionController(Session, NamespaceVirtualization, CimClassNameEmulatedAdapterSettingData, AddressOf OnDeleteAdapter, AddressOf ReportError)
 
 		SyntheticAdapterSettingsCreateSubscriber.Start()
 		SyntheticAdapterSettingsChangeSubscriber.Start()

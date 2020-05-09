@@ -65,7 +65,7 @@ Public Class LogController
 	End Property
 
 	Public Shared Sub CloseAll()
-		DebugModeSettingController.Dispose()
+		DebugModeSettingController?.Dispose()
 		DebugModeSettingController = Nothing
 		ServiceInstance = Nothing
 		ControllerInstance = Nothing
@@ -86,39 +86,39 @@ Public Class LogController
 	Private Shared ServiceInstance As HyperViveService
 	Private Shared DebugModeSettingController As RegistryController
 
-	Private Const EventCategoryApplicationError As Integer = 1
-	Private Const EventCategoryModuleError As Integer = 2
-	Private Const EventCategoryDebugMessage As Integer = 3
-	Private Const EventCategoryMagicPacket As Integer = 4
-	Private Const EventCategoryVMStarter As Integer = 5
-	Private Const EventCategoryCheckpoint As Integer = 6
-	Private Const EventCategoryCimError As Integer = 7
-	Private Const EventIdApplicationHaltError As Integer = 1000
-	Private Const EventIdModuleError As Integer = 1001
-	Private Const EventIdCimError As Integer = 1002
-	Private Const EventIdElevationError As Integer = 1003
-	Private Const EventIdRegistryAccessError As Integer = 1011
-	Private Const EventIdRegistryOpenKeyError As Integer = 1012
-	Private Const EventIdInvalidVirtualAdapter As Integer = 1021
-	Private Const EventIdMagicPacketProcessed As Integer = 2000
-	Private Const EventIdVirtualMachineStartSuccess As Integer = 3000
-	Private Const EventIdVirtualMachineStartFail As Integer = 3001
-	Private Const EventIdCheckpointActionStarted As Integer = 4000
-	Private Const EventIdCheckpointActionSuccess As Integer = 4001
-	Private Const EventIdCheckpointActionFail As Integer = 4002
-	Private Const EventIdDebugMessageGeneric As Integer = 9000
-	Private Const EventIdDebugModeChanged As Integer = 9001
-	Private Const EventIdDebugRegistryKVPNotFound As Integer = 9002
-	Private Const EventIdDebugVirtualAdapterEnumeratedCount As Integer = 9003
-	Private Const EventIdDebugVirtualAdapterNew As Integer = 9004
-	Private Const EventIdDebugVirtualAdapterChanged As Integer = 9005
-	Private Const EventIdDebugVirtualAdapterNewFromUpdate As Integer = 9006
-	Private Const EventIdDebugVirtualAdapterDeleted As Integer = 9007
-	Private Const EventIdDebugInitiatedVMStart As Integer = 9008
-	Private Const EventIdDebugMagicPacketInvalidFormat As Integer = 9009
-	Private Const EventIdDebugMagicPacketDuplicate As Integer = 9010
-	Private Const EventIdDebugMagicPacketExclusionEnded As Integer = 9011
-	Private Const EventIdDebugVirtualizationJobReceived As Integer = 9012
+	Private Const EventCategoryApplicationError As UInteger = 1
+	Private Const EventCategoryModuleError As UInteger = 2
+	Private Const EventCategoryDebugMessage As UInteger = 3
+	Private Const EventCategoryMagicPacket As UInteger = 4
+	Private Const EventCategoryVMStarter As UInteger = 5
+	Private Const EventCategoryCheckpoint As UInteger = 6
+	Private Const EventCategoryCimError As UInteger = 7
+	Private Const EventIdApplicationHaltError As UInteger = 1000
+	Private Const EventIdModuleError As UInteger = 1001
+	Private Const EventIdCimError As UInteger = 1002
+	Private Const EventIdElevationError As UInteger = 1003
+	Private Const EventIdRegistryAccessError As UInteger = 1011
+	Private Const EventIdRegistryOpenKeyError As UInteger = 1012
+	Private Const EventIdInvalidVirtualAdapter As UInteger = 1021
+	Private Const EventIdMagicPacketProcessed As UInteger = 2000
+	Private Const EventIdVirtualMachineStartSuccess As UInteger = 3000
+	Private Const EventIdVirtualMachineStartFail As UInteger = 3001
+	Private Const EventIdCheckpointActionStarted As UInteger = 4000
+	Private Const EventIdCheckpointActionSuccess As UInteger = 4001
+	Private Const EventIdCheckpointActionFail As UInteger = 4002
+	Private Const EventIdDebugMessageGeneric As UInteger = 9000
+	Private Const EventIdDebugModeChanged As UInteger = 9001
+	Private Const EventIdDebugRegistryKVPNotFound As UInteger = 9002
+	Private Const EventIdDebugVirtualAdapterEnumeratedCount As UInteger = 9003
+	Private Const EventIdDebugVirtualAdapterNew As UInteger = 9004
+	Private Const EventIdDebugVirtualAdapterChanged As UInteger = 9005
+	Private Const EventIdDebugVirtualAdapterNewFromUpdate As UInteger = 9006
+	Private Const EventIdDebugVirtualAdapterDeleted As UInteger = 9007
+	Private Const EventIdDebugInitiatedVMStart As UInteger = 9008
+	Private Const EventIdDebugMagicPacketInvalidFormat As UInteger = 9009
+	Private Const EventIdDebugMagicPacketDuplicate As UInteger = 9010
+	Private Const EventIdDebugMagicPacketExclusionEnded As UInteger = 9011
+	Private Const EventIdDebugVirtualizationJobReceived As UInteger = 9012
 
 	Private Sub WriteEventLogEntry(ByVal EventId As Long, ByVal EventCategory As Integer, Parameters As Object(), Optional EventType As EventLogEntryType = EventLogEntryType.Information)
 		SyncLock EventLock
@@ -138,7 +138,7 @@ Public Class LogController
 	End Sub
 
 	Public Sub LogCimError(ByVal [Error] As CimException, ByVal ModuleName As String) Implements IModuleLogger.LogCimError
-		WriteEventLogEntry(EventIdCimError, EventCategoryCimError, {[Error].Message, ModuleName})
+		WriteEventLogEntry(EventIdCimError, EventCategoryCimError, {[Error].Message, ModuleName}, EventLogEntryType.Error)
 		[Error].Dispose()
 	End Sub
 
@@ -255,7 +255,7 @@ Public Class LogController
 		Try
 			DebugMode = CBool(DebugModeSettingController.Value)
 		Catch ex As Exception
-			DebugMode = False
+			DebugMode = True
 		End Try
 		LogDebugModeChanged(DebugMode)
 	End Sub
