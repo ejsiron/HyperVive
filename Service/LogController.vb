@@ -34,8 +34,9 @@ End Interface
 Public Interface IMagicPacketLogger
 	Sub LogMagicPacketProcessed(ByVal TargetMAC As String, ByVal RequestorIP As String)
 	Sub LogDebugMagicPacketInvalidFormat()
-	Sub LogDebugMagicPacketDuplicate(ByVal MAC As String)
+	Sub LogDebugMagicPacketReceived(ByVal TargetMAC As String, ByVal RequestorIP As String)
 	Sub LogDebugMagicPacketExclusionEnded(ByVal MAC As String)
+	Sub LogDebugMagicPacketDuplicate(ByVal MAC As String)
 End Interface
 
 Public Interface ICheckpointLogger
@@ -82,8 +83,8 @@ Public Class LogController
 	Private Shared ReadOnly EventLock As New Object
 
 	Private Shared Session As CimSession
-	Private Shared ControllerInstance As LogController
-	Private Shared ServiceInstance As HyperViveService
+	Private Shared ControllerInstance As LogController = Nothing
+	Private Shared ServiceInstance As HyperViveService = Nothing
 	Private Shared DebugModeSettingController As RegistryController
 
 	Private Const EventCategoryApplicationError As UInteger = 1
@@ -116,9 +117,10 @@ Public Class LogController
 	Private Const EventIdDebugVirtualAdapterDeleted As UInteger = 9007
 	Private Const EventIdDebugInitiatedVMStart As UInteger = 9008
 	Private Const EventIdDebugMagicPacketInvalidFormat As UInteger = 9009
-	Private Const EventIdDebugMagicPacketDuplicate As UInteger = 9010
+	Private Const EventIdDebugMagicPacketReceived As UInteger = 9010
 	Private Const EventIdDebugMagicPacketExclusionEnded As UInteger = 9011
 	Private Const EventIdDebugVirtualizationJobReceived As UInteger = 9012
+	Private Const EventIdDebugMagicPacketDuplicate As UInteger = 9013
 
 	Private Sub WriteEventLogEntry(ByVal EventId As Long, ByVal EventCategory As Integer, Parameters As Object(), Optional EventType As EventLogEntryType = EventLogEntryType.Information)
 		SyncLock EventLock
@@ -188,9 +190,9 @@ Public Class LogController
 	End Sub
 
 	Private Sub LogBaseDebugMessage(ByVal EventId As Long, ByVal Parameters As Object())
-		If DebugMode Then
-			WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
-		End If
+		'If DebugMode Then
+		WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
+		'End If
 	End Sub
 
 	Public Sub LogDebugMessageGeneric(ByVal Message As String, ByVal ModuleName As String) Implements IModuleLogger.LogDebugMessageGeneric
@@ -235,8 +237,8 @@ Public Class LogController
 		LogBaseDebugMessage(EventIdDebugMagicPacketInvalidFormat, Array.Empty(Of Object))
 	End Sub
 
-	Public Sub LogDebugMagicPacketDuplicate(ByVal MAC As String) Implements IMagicPacketLogger.LogDebugMagicPacketDuplicate
-		LogBaseDebugMessage(EventIdDebugMagicPacketDuplicate, {MAC})
+	Public Sub LogDebugMagicPacketReceived(ByVal TargetMAC As String, ByVal RequestorIP As String) Implements IMagicPacketLogger.LogDebugMagicPacketReceived
+		LogBaseDebugMessage(EventIdDebugMagicPacketReceived, {TargetMAC, RequestorIP})
 	End Sub
 
 	Public Sub LogDebugMagicPacketExclusionEnded(ByVal MAC As String) Implements IMagicPacketLogger.LogDebugMagicPacketExclusionEnded
@@ -245,6 +247,10 @@ Public Class LogController
 
 	Public Sub LogDebugVirtualizationJobReceived(ByVal TypeCode As Integer, ByVal JobID As String) Implements ICheckpointLogger.LogDebugVirtualizationJobReceived
 		LogBaseDebugMessage(EventIdDebugVirtualizationJobReceived, {TypeCode, JobID})
+	End Sub
+
+	Public Sub LogDebugMagicPacketDuplicate(ByVal MAC As String) Implements IMagicPacketLogger.LogDebugMagicPacketDuplicate
+		LogBaseDebugMessage(EventIdDebugMagicPacketDuplicate, {MAC})
 	End Sub
 
 	Private DebugMode As Boolean = False

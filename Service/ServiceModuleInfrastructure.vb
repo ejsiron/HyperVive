@@ -92,8 +92,11 @@ Public Class ModuleController
 
 	Private Sub ProcessMagicPacket(ByVal MAC As String, ByVal RequestorIP As String)
 		Dim VmIDs As List(Of String) = AdapterInventoryModule.GetVmIDFromMac(MAC)
-		Dim VMStarter As New VMStartController(LocalCimSession, LogControllerInstance, LogControllerInstance)
-		VMStarter.StartVM(MAC, VmIDs, RequestorIP)
+		If VmIDs.Count > 0 Then
+			LogControllerInstance.LogMagicPacketProcessed(MAC, RequestorIP)
+			Dim VMStarter As New VMStartController(LocalCimSession, LogControllerInstance, LogControllerInstance)
+			VMStarter.StartVM(MAC, VmIDs, RequestorIP)
+		End If
 	End Sub
 
 	Private Sub OnAppError(ByVal sender As Object, ByVal e As UnhandledExceptionEventArgs)

@@ -13,6 +13,7 @@
 ' SOFTWARE.
 
 Imports Microsoft.Management.Infrastructure
+Imports Microsoft.Management.Infrastructure.Options
 Imports System.Threading
 
 Namespace CIMitar

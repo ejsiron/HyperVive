@@ -115,7 +115,7 @@ Severity=Success
 Facility=Application
 SymbolicName=TEMPLATE_COMPONENT_JOB
 Language=English
-Job%
+Job%0
 .
 
 MessageId=604
@@ -690,13 +690,16 @@ Language=English
 Possible magic packet received with invalid format.
 .
 
-;// 1: MAC address
+;// 1: Target MAC address
+;// 2: Requesting IP address
 MessageId=9010
 Severity=Success
 Facility=Application
-SymbolicName=DEBUG_MAGIC_PACKET_DUPLICATE
+SymbolicName=DEBUG_MAGIC_PACKET_RECEIVED
 Language=English
-Received duplicate/excluded request for %%702 %1
+Received validly-formatted wake-on-LAN frame
+%%702 %1
+%%703 %%601: %2.
 .
 
 ;// 1: MAC address
@@ -716,6 +719,15 @@ Facility=Application
 SymbolicName=DEBUG_VIRTUALIZATION_JOB_RECEIVED
 Language=English
 Virtualization job created.
-%%603 %%618: %1
-%%603 %%602: %2
+%n%%603 %%618: %1
+%n%%603 %%602: %2
+.
+
+;// 1: MAC address
+MessageId=9013
+Severity=Success
+Facility=Application
+SymbolicName=DEBUG_MAGIC_PACKET_DUPLICATE
+Language=English
+Received duplicate/excluded request for %%702 %1
 .

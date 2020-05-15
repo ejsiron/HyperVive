@@ -156,7 +156,7 @@
 //
 // MessageText:
 //
-// Job%
+// Job%0
 //
 #define TEMPLATE_COMPONENT_JOB           ((WORD)603L)
 
@@ -812,8 +812,8 @@
 // MessageText:
 //
 // Virtualization job created.
-// %%603 %%618: %1
-// %%603 %%602: %2
+// %n%%603 %%618: %1
+// %n%%603 %%602: %2
 //
 #define DEBUG_VIRTUALIZATION_JOB_RECEIVED ((WORD)9012L)
 

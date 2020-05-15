@@ -111,9 +111,9 @@ Public Class WakeOnLanListener
 				MagicPacketLogger.LogDebugMagicPacketDuplicate(MAC)
 				Return
 			End If
+			MagicPacketLogger.LogDebugMagicPacketReceived(MAC, SenderIP)
 
 			PacketProcessor?(MAC, SenderIP)
-			MagicPacketLogger.LogMagicPacketProcessed(MAC, SenderIP)
 
 			' when binding to IPAny, will receive the same MAC at least twice (once on each IP that receives the broadcast, once on the loopback)
 			' also, a VM cannot fully start instantly -- pointless to process the same MAC too rapidly, so good to ignore repeats for a time

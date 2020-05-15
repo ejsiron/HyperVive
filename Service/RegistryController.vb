@@ -63,8 +63,8 @@ Public Class RegistryController
 	''' Starts the value watcher
 	''' </summary>
 	Public Sub Start() Implements IRunningModule.Start
-		ReadValue()
-		ValueWatcher = New CimSubscriptionController(Session, AddressOf ReadValue, AddressOf ReportError) With {
+		GetKVPValue()
+		ValueWatcher = New CimSubscriptionController(Session, AddressOf RelayValueChange, AddressOf ReportError) With {
 			.[Namespace] = CimNamespaceRootDefault,
 			.QueryText = String.Format(CimQueryTemplateRegistryValueChange, RootRegistry.Name, EscapeRegistryItem(KeySubPath), ValueName)
 		}
@@ -98,7 +98,7 @@ Public Class RegistryController
 	Public ReadOnly Property Value As Object
 		Get
 			If ValueWatcher Is Nothing OrElse Not ValueWatcher.IsRunning Then
-				ReadValue()
+				GetKVPValue()
 			End If
 			Return _Value
 		End Get
@@ -107,11 +107,16 @@ Public Class RegistryController
 	Public Overrides ReadOnly Property ModuleName As String = "Registry"
 	Private ValueWatcher As CimSubscriptionController
 
+	Private Sub RelayValueChange(ByVal SubscriptionNotification As CimSubscriptionResult)
+		SubscriptionNotification.Dispose()
+		GetKVPValue()
+		ReportValueChange()
+	End Sub
+
 	''' <summary>
 	''' Reads the KVP value from the registry
 	''' </summary>
-	Private Sub ReadValue(Optional ByVal SubscriptionNotification As CimSubscriptionResult = Nothing)
-		SubscriptionNotification?.Dispose()
+	Private Sub GetKVPValue()
 		Dim TargetKey As RegistryKey = Nothing
 		Try
 			TargetKey = RootRegistry.OpenSubKey(KeySubPath)
@@ -122,14 +127,13 @@ Public Class RegistryController
 			Try
 				_Value = TargetKey.GetValue(ValueName)
 				_ValueKind = TargetKey.GetValueKind(ValueName)
-				ReportValueChange()
 			Catch ioex As IO.IOException
 				RegistryLogger.LogDebugRegistryKVPNotFound(ValueName, KeyFullPath)
 			Catch ex As Exception
 				RegistryLogger.LogRegistryAccessError(KeyFullPath, ex)
 			Finally
-				TargetKey?.Close()
-				TargetKey?.Dispose()
+				TargetKey.Close()
+				TargetKey.Dispose()
 			End Try
 		End If
 	End Sub

@@ -1,5 +1,9 @@
 ﻿Public Class HyperViveService
-	Public ReadOnly Property ServiceRegistryRootPath As String = String.Format(ServiceRegistryPathTemplate, ServiceName)
+	Public ReadOnly Property ServiceRegistryRootPath As String
+		Get
+			Return String.Format(ServiceRegistryPathTemplate, ServiceName)
+		End Get
+	End Property
 
 	Protected Overrides Sub OnStart(ByVal args() As String)
 		ServiceModuleController = New ModuleController(Me)
