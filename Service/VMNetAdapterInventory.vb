@@ -1,4 +1,5 @@
-﻿Imports HyperVive.CIMitar
+﻿Imports System.IO
+Imports HyperVive.CIMitar
 Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
