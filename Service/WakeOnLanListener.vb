@@ -26,7 +26,7 @@ Public Class WakeOnLanListener
 	''' Starts the WOL listener
 	''' </summary>
 	Public Async Sub Start() Implements IRunningModule.Start
-		RecentMACs = New List(Of String)
+		RecentMACs = New HashSet(Of String)
 		Dim CancelToken As CancellationToken
 		Canceller = New CancellationTokenSource
 		CancelToken = Canceller.Token
@@ -73,7 +73,7 @@ Public Class WakeOnLanListener
 	Private ReadOnly MagicPacketLogger As IMagicPacketLogger
 	Private Canceller As CancellationTokenSource = Nothing
 	Private ReadOnly ListLock As New Object
-	Private RecentMACs As List(Of String)
+	Private RecentMACs As HashSet(Of String)
 	Private ReadOnly PacketProcessor As Action(Of String, String)  ' MAC, requesting IP
 
 	Private Function ExtractMACFromMagicPacket(ByRef DataBuffer As Byte()) As String
@@ -123,9 +123,12 @@ Public Class WakeOnLanListener
 		Task.Run(Sub()
 						Thread.Sleep(MACWatchTimeoutSeconds * 1000)
 						SyncLock ListLock
-							RecentMACs?.Remove(MAC)
+							If RecentMACs?.Remove(MAC) Then
+								MagicPacketLogger.LogDebugMagicPacketExclusionEnded(MAC)
+							Else
+								MagicPacketLogger.LogDebugMagicPacketNotInExclusionList(MAC)
+							End If
 						End SyncLock
-						MagicPacketLogger.LogDebugMagicPacketExclusionEnded(MAC)
 					End Sub)
 	End Sub
 

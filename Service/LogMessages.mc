@@ -731,3 +731,12 @@ SymbolicName=DEBUG_MAGIC_PACKET_DUPLICATE
 Language=English
 Received duplicate/excluded request for %%702 %1
 .
+
+;// 1: MAC address
+MessageId=9014
+Severity=Success
+Facility=Application
+SymbolicName=DEBUG_MAGIC_PACKET_REMOVENOTPRESENT
+Language=English
+Attempted to remove exclusion for %1, but the MAC was not in the exclusion list
+.

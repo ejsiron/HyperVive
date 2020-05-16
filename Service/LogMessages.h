@@ -784,15 +784,18 @@
 //
 #define DEBUG_MAGIC_PACKET_INVALID_FORMAT ((WORD)9009L)
 
-// 1: MAC address
+// 1: Target MAC address
+// 2: Requesting IP address
 //
-// MessageId: DEBUG_MAGIC_PACKET_DUPLICATE
+// MessageId: DEBUG_MAGIC_PACKET_RECEIVED
 //
 // MessageText:
 //
-// Received duplicate/excluded request for %%702 %1
+// Received validly-formatted wake-on-LAN frame
+// %%702 %1
+// %%703 %%601: %2.
 //
-#define DEBUG_MAGIC_PACKET_DUPLICATE     ((WORD)9010L)
+#define DEBUG_MAGIC_PACKET_RECEIVED      ((WORD)9010L)
 
 // 1: MAC address
 //
@@ -816,4 +819,24 @@
 // %n%%603 %%602: %2
 //
 #define DEBUG_VIRTUALIZATION_JOB_RECEIVED ((WORD)9012L)
+
+// 1: MAC address
+//
+// MessageId: DEBUG_MAGIC_PACKET_DUPLICATE
+//
+// MessageText:
+//
+// Received duplicate/excluded request for %%702 %1
+//
+#define DEBUG_MAGIC_PACKET_DUPLICATE     ((WORD)9013L)
+
+// 1: MAC address
+//
+// MessageId: DEBUG_MAGIC_PACKET_REMOVENOTPRESENT
+//
+// MessageText:
+//
+// Attempted to remove exclusion for %1, but the MAC was not in the exclusion list
+//
+#define DEBUG_MAGIC_PACKET_REMOVENOTPRESENT ((WORD)9014L)
 

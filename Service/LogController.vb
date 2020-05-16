@@ -37,6 +37,7 @@ Public Interface IMagicPacketLogger
 	Sub LogDebugMagicPacketReceived(ByVal TargetMAC As String, ByVal RequestorIP As String)
 	Sub LogDebugMagicPacketExclusionEnded(ByVal MAC As String)
 	Sub LogDebugMagicPacketDuplicate(ByVal MAC As String)
+	Sub LogDebugMagicPacketNotInExclusionList(ByVal MAC As String)
 End Interface
 
 Public Interface ICheckpointLogger
@@ -121,6 +122,7 @@ Public Class LogController
 	Private Const EventIdDebugMagicPacketExclusionEnded As UInteger = 9011
 	Private Const EventIdDebugVirtualizationJobReceived As UInteger = 9012
 	Private Const EventIdDebugMagicPacketDuplicate As UInteger = 9013
+	Private Const EventIdDebugMagicPacketNotInExclusionList As UInteger = 9014
 
 	Private Sub WriteEventLogEntry(ByVal EventId As Long, ByVal EventCategory As Integer, Parameters As Object(), Optional EventType As EventLogEntryType = EventLogEntryType.Information)
 		SyncLock EventLock
@@ -251,6 +253,10 @@ Public Class LogController
 
 	Public Sub LogDebugMagicPacketDuplicate(ByVal MAC As String) Implements IMagicPacketLogger.LogDebugMagicPacketDuplicate
 		LogBaseDebugMessage(EventIdDebugMagicPacketDuplicate, {MAC})
+	End Sub
+
+	Public Sub LogDebugMagicPacketNotInExclusionList(ByVal MAC As String) Implements IMagicPacketLogger.LogDebugMagicPacketNotInExclusionList
+		LogBaseDebugMessage(EventIdDebugMagicPacketNotInExclusionList, {MAC})
 	End Sub
 
 	Private DebugMode As Boolean = False
