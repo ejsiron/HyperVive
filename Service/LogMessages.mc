@@ -392,7 +392,7 @@ SymbolicName=APPLICATION_HALT_ERROR
 Language=English
 Halting due to unexpected error.
 %%707 %1
-%%708 %2
+%n%%708 %2
 .
 
 ;// 1: Module name
@@ -405,8 +405,8 @@ SymbolicName=MODULE_ERROR
 Language=English
 An unexpected error occurred.
 %%714 %1
-%%707 %2
-%%708 %3
+%n%%707 %2
+%n%%708 %3
 .
 
 ;// 1: Error message
@@ -418,7 +418,7 @@ SymbolicName=CIM_ERROR
 Language=English
 An error occurred in the CIM/WMI subsystem.
 %%707 %1
-%%714 %2
+%n%%714 %2
 .
 
 MessageId=1003
@@ -438,9 +438,9 @@ Facility=Application
 SymbolicName=REGISTRY_ACCESS_ERROR
 Language=English
 %%709 %%610
-%%712 %1
-%%707 %2
-%%708 %3
+%n%%712 %1
+%n%%707 %2
+%n%%708 %3
 .
 
 ;// 1: Registry path
@@ -452,9 +452,9 @@ Facility=Application
 SymbolicName=REGISTRY_OPENKEY_ERROR
 Language=English
 %%709 %%611
-%%712 %1
-%%707 %2
-%%708 %3
+%n%%712 %1
+%n%%707 %2
+%n%%708 %3
 .
 
 ;// 1: VNIC Instance ID
@@ -485,7 +485,7 @@ SymbolicName=MAGIC_PACKET_PROCESSED
 Language=English
 Received wake-on-LAN frame
 %%702 %1
-%%703 %%601: %2.
+%n%%703 %%601: %2.
 .
 
 ;// 1: VM name
@@ -498,10 +498,10 @@ Facility=Application
 SymbolicName=VIRTUAL_MACHINE_START_SUCCESS
 Language=English
 %%713 %%606.
-%%700 %1
-%%701 %2
-%%600 %%702 %3
-%%703 %%601: %4
+%n%%700 %1
+%n%%701 %2
+%n%%600 %%702 %3
+%n%%703 %%601: %4
 .
 
 ;// 1: VM name
@@ -515,13 +515,13 @@ Severity=Success
 Facility=Application
 SymbolicName=VIRTUAL_MACHINE_START_FAIL
 Language=English
-%713 %%607.
-%%700 %1
-%%701 %2
-%%600 %%702 %3
-%%703 %%601: %4
-%%704: %5
-%%705: %6
+%%713 %%607.
+%n%%700 %1
+%n%%701 %2
+%n%%600 %%702 %3
+%n%%703 %%601: %4
+%n%%704: %5
+%n%%705: %6
 .
 
 ;// 1: Checkpoint action
@@ -535,10 +535,10 @@ Facility=Application
 SymbolicName=CHECKPOINT_ACTION_STARTED
 Language=English
 %%604 "%1" %%605
-%%600: %2
-%%706 %3
-%%600 %%701 %4
-%%603 %%701 %5
+%n%%600: %2
+%n%%706 %3
+%n%%600 %%701 %4
+%n%%603 %%701 %5
 .
 
 ;// 1: Checkpoint action
@@ -552,10 +552,10 @@ Facility=Application
 SymbolicName=CHECKPOINT_ACTION_SUCCESS
 Language=English
 %%604 "%1" %%606
-%%600: %2
-%%706 %3
-%%600 %%701 %4
-%%603 %%701 %5
+%n%%600: %2
+%n%%706 %3
+%n%%600 %%701 %4
+%n%%603 %%701 %5
 .
 
 ;// 1: Checkpoint action
@@ -571,12 +571,12 @@ Facility=Application
 SymbolicName=CHECKPOINT_ACTION_FAIL
 Language=English
 %%604 "%1" %%607
-%%600: %2
-%%706 %3
-%%600 %%701 %4
-%%603 %%701 %5
-%%704 %6
-%%705 %7
+%n%%600: %2
+%n%%706 %3
+%n%%600 %%701 %4
+%n%%603 %%701 %5
+%n%%704 %6
+%n%%705 %7
 .
 
 ;// 1: Message as input
@@ -587,7 +587,7 @@ Facility=Application
 SymbolicName=DEBUG_MESSAGE_GENERIC
 Language=English
 %1
-%%714 %2
+%n%%714 %2
 .
 
 ;// 1: Debug mode switch setting
@@ -607,8 +607,8 @@ Facility=Application
 SymbolicName=DEBUG_REGISTRY_KVP_NOTFOUND
 Language=English
 %%619 %%620 not found.
-%%620 name: %1
-%%710 %2
+%n%%620 name: %1
+%n%%710 %2
 .
 
 ;// 1: Number of virtual adapters
@@ -628,8 +628,8 @@ Facility=Application
 SymbolicName=DEBUG_VIRTUAL_ADAPTER_NEW
 Language=English
 %%612 %%613
-%%702 %1
-%%711 %2
+%n%%702 %1
+%n%%711 %2
 .
 
 ;// 1: MAC address
@@ -640,8 +640,8 @@ Facility=Application
 SymbolicName=DEBUG_VIRTUAL_ADAPTER_CHANGED
 Language=English
 %%612 %%614
-%%702 %1
-%%711 %2
+%n%%702 %1
+%n%%711 %2
 .
 
 ;// 1: MAC address
@@ -652,8 +652,8 @@ Facility=Application
 SymbolicName=DEBUG_VIRTUAL_ADAPTER_NEW_FROM_UPDATE
 Language=English
 %%612 %%613 from update event
-%%702 %1
-%%711 %2
+%n%%702 %1
+%n%%711 %2
 .
 
 ;// 1: MAC address
@@ -664,8 +664,8 @@ Facility=Application
 SymbolicName=DEBUG_VIRTUAL_ADAPTER_DELETED
 Language=English
 %%612 %%615
-%%702 %1
-%%711 %2
+%n%%702 %1
+%n%%711 %2
 .
 
 ;// 1: VM name
@@ -678,8 +678,8 @@ SymbolicName=DEBUG_INITIATED_VM_START
 Language=English
 Initiated %%600 boot-up
 %%600: %1
-%%600 %%602: %2
-%%603 %%602: %3
+%n%%600 %%602: %2
+%n%%603 %%602: %3
 .
 
 MessageId=9009
@@ -699,7 +699,7 @@ SymbolicName=DEBUG_MAGIC_PACKET_RECEIVED
 Language=English
 Received validly-formatted wake-on-LAN frame
 %%702 %1
-%%703 %%601: %2.
+%n%%703 %%601: %2.
 .
 
 ;// 1: MAC address

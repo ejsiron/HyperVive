@@ -192,9 +192,9 @@ Public Class LogController
 	End Sub
 
 	Private Sub LogBaseDebugMessage(ByVal EventId As Long, ByVal Parameters As Object())
-		'If DebugMode Then
-		WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
-		'End If
+		If DebugMode Then
+			WriteEventLogEntry(EventId, EventCategoryDebugMessage, Parameters)
+		End If
 	End Sub
 
 	Public Sub LogDebugMessageGeneric(ByVal Message As String, ByVal ModuleName As String) Implements IModuleLogger.LogDebugMessageGeneric

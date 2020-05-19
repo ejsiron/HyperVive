@@ -464,7 +464,7 @@
 //
 // Halting due to unexpected error.
 // %%707 %1
-// %%708 %2
+// %n%%708 %2
 //
 #define APPLICATION_HALT_ERROR           ((WORD)1000L)
 
@@ -478,8 +478,8 @@
 //
 // An unexpected error occurred.
 // %%714 %1
-// %%707 %2
-// %%708 %3
+// %n%%707 %2
+// %n%%708 %3
 //
 #define MODULE_ERROR                     ((WORD)1001L)
 
@@ -492,7 +492,7 @@
 //
 // An error occurred in the CIM/WMI subsystem.
 // %%707 %1
-// %%714 %2
+// %n%%714 %2
 //
 #define CIM_ERROR                        ((WORD)1002L)
 
@@ -514,9 +514,9 @@
 // MessageText:
 //
 // %%709 %%610
-// %%712 %1
-// %%707 %2
-// %%708 %3
+// %n%%712 %1
+// %n%%707 %2
+// %n%%708 %3
 //
 #define REGISTRY_ACCESS_ERROR            ((WORD)1011L)
 
@@ -529,9 +529,9 @@
 // MessageText:
 //
 // %%709 %%611
-// %%712 %1
-// %%707 %2
-// %%708 %3
+// %n%%712 %1
+// %n%%707 %2
+// %n%%708 %3
 //
 #define REGISTRY_OPENKEY_ERROR           ((WORD)1012L)
 
@@ -563,7 +563,7 @@
 //
 // Received wake-on-LAN frame
 // %%702 %1
-// %%703 %%601: %2.
+// %n%%703 %%601: %2.
 //
 #define MAGIC_PACKET_PROCESSED           ((WORD)2000L)
 
@@ -577,10 +577,10 @@
 // MessageText:
 //
 // %%713 %%606.
-// %%700 %1
-// %%701 %2
-// %%600 %%702 %3
-// %%703 %%601: %4
+// %n%%700 %1
+// %n%%701 %2
+// %n%%600 %%702 %3
+// %n%%703 %%601: %4
 //
 #define VIRTUAL_MACHINE_START_SUCCESS    ((WORD)3000L)
 
@@ -595,13 +595,13 @@
 //
 // MessageText:
 //
-// %713 %%607.
-// %%700 %1
-// %%701 %2
-// %%600 %%702 %3
-// %%703 %%601: %4
-// %%704: %5
-// %%705: %6
+// %%713 %%607.
+// %n%%700 %1
+// %n%%701 %2
+// %n%%600 %%702 %3
+// %n%%703 %%601: %4
+// %n%%704: %5
+// %n%%705: %6
 //
 #define VIRTUAL_MACHINE_START_FAIL       ((WORD)3001L)
 
@@ -616,10 +616,10 @@
 // MessageText:
 //
 // %%604 "%1" %%605
-// %%600: %2
-// %%706 %3
-// %%600 %%701 %4
-// %%603 %%701 %5
+// %n%%600: %2
+// %n%%706 %3
+// %n%%600 %%701 %4
+// %n%%603 %%701 %5
 //
 #define CHECKPOINT_ACTION_STARTED        ((WORD)4000L)
 
@@ -634,10 +634,10 @@
 // MessageText:
 //
 // %%604 "%1" %%606
-// %%600: %2
-// %%706 %3
-// %%600 %%701 %4
-// %%603 %%701 %5
+// %n%%600: %2
+// %n%%706 %3
+// %n%%600 %%701 %4
+// %n%%603 %%701 %5
 //
 #define CHECKPOINT_ACTION_SUCCESS        ((WORD)4001L)
 
@@ -654,12 +654,12 @@
 // MessageText:
 //
 // %%604 "%1" %%607
-// %%600: %2
-// %%706 %3
-// %%600 %%701 %4
-// %%603 %%701 %5
-// %%704 %6
-// %%705 %7
+// %n%%600: %2
+// %n%%706 %3
+// %n%%600 %%701 %4
+// %n%%603 %%701 %5
+// %n%%704 %6
+// %n%%705 %7
 //
 #define CHECKPOINT_ACTION_FAIL           ((WORD)4002L)
 
@@ -671,7 +671,7 @@
 // MessageText:
 //
 // %1
-// %%714 %2
+// %n%%714 %2
 //
 #define DEBUG_MESSAGE_GENERIC            ((WORD)9000L)
 
@@ -693,8 +693,8 @@
 // MessageText:
 //
 // %%619 %%620 not found.
-// %%620 name: %1
-// %%710 %2
+// %n%%620 name: %1
+// %n%%710 %2
 //
 #define DEBUG_REGISTRY_KVP_NOTFOUND      ((WORD)9002L)
 
@@ -716,8 +716,8 @@
 // MessageText:
 //
 // %%612 %%613
-// %%702 %1
-// %%711 %2
+// %n%%702 %1
+// %n%%711 %2
 //
 #define DEBUG_VIRTUAL_ADAPTER_NEW        ((WORD)9004L)
 
@@ -729,8 +729,8 @@
 // MessageText:
 //
 // %%612 %%614
-// %%702 %1
-// %%711 %2
+// %n%%702 %1
+// %n%%711 %2
 //
 #define DEBUG_VIRTUAL_ADAPTER_CHANGED    ((WORD)9005L)
 
@@ -742,8 +742,8 @@
 // MessageText:
 //
 // %%612 %%613 from update event
-// %%702 %1
-// %%711 %2
+// %n%%702 %1
+// %n%%711 %2
 //
 #define DEBUG_VIRTUAL_ADAPTER_NEW_FROM_UPDATE ((WORD)9006L)
 
@@ -755,8 +755,8 @@
 // MessageText:
 //
 // %%612 %%615
-// %%702 %1
-// %%711 %2
+// %n%%702 %1
+// %n%%711 %2
 //
 #define DEBUG_VIRTUAL_ADAPTER_DELETED    ((WORD)9007L)
 
@@ -770,8 +770,8 @@
 //
 // Initiated %%600 boot-up
 // %%600: %1
-// %%600 %%602: %2
-// %%603 %%602: %3
+// %n%%600 %%602: %2
+// %n%%603 %%602: %3
 //
 #define DEBUG_INITIATED_VM_START         ((WORD)9008L)
 
@@ -793,7 +793,7 @@
 //
 // Received validly-formatted wake-on-LAN frame
 // %%702 %1
-// %%703 %%601: %2.
+// %n%%703 %%601: %2.
 //
 #define DEBUG_MAGIC_PACKET_RECEIVED      ((WORD)9010L)
 

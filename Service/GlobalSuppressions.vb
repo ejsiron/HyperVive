@@ -8,3 +8,4 @@ Imports System.Diagnostics.CodeAnalysis
 <Assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification:="<Pending>", Scope:="member", Target:="~M:HyperVive.WakeOnLanListener.Start")>
 <Assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification:="<Pending>", Scope:="member", Target:="~M:HyperVive.LogController.UpdateSettingMode")>
 <Assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification:="<Pending>", Scope:="member", Target:="~M:HyperVive.VMNetAdapterInventory.ExtractVmIDFromInstanceID(System.String)~System.String")>
+<Assembly: SuppressMessage("Design", "CA1031:Do not catch general exception types", Justification:="<Pending>", Scope:="member", Target:="~M:HyperVive.RegistryController.GetKVPValue")>

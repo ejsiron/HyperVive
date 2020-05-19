@@ -87,8 +87,8 @@ Public Class RegistryController
 
 	Private _Value As Object = 0
 
-	Private ReportValueChange As Action
-	Private RegistryLogger As IRegistryLogger
+	Private ReadOnly ReportValueChange As Action
+	Private ReadOnly RegistryLogger As IRegistryLogger
 
 	''' <summary>
 	''' Current value of the KVP

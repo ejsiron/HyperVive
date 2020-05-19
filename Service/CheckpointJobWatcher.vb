@@ -35,8 +35,8 @@ Public Class CheckpointJobWatcher
 	End Sub
 
 	Public Overrides ReadOnly Property ModuleName As String = "Checkpoint Watcher"
-	Private CheckpointLogger As ICheckpointLogger
-	Private JobSubscriber As InstanceCreationController
+	Private ReadOnly CheckpointLogger As ICheckpointLogger
+	Private ReadOnly JobSubscriber As InstanceCreationController
 	Private Const ApplySnapshotAction As String = "Apply"
 	Private Const ClearSnapshotStateAction As String = "Clear state"
 	Private Const DeleteSnapshotAction As String = "Delete"

@@ -11,7 +11,7 @@ Public Class VMNetAdapterInventory
 	''' <summary>
 	''' Matches a virtual adapter's Instance ID to its MAC address
 	''' </summary>
-	Public Structure AdapterEntry
+	Private Class AdapterEntry
 		''' <summary>
 		''' The virtual network adapter's instance ID
 		''' </summary>
@@ -28,7 +28,28 @@ Public Class VMNetAdapterInventory
 		''' </summary>
 		''' <returns><see cref="Boolean"/></returns>
 		Public Property IsEmulated As Boolean
-	End Structure
+
+		Public Overrides Function Equals(obj As Object) As Boolean
+			Dim y As AdapterEntry = TryCast(obj, AdapterEntry)
+			If y Is Nothing Then
+				Return False
+			Else
+				Return InstanceID = y.InstanceID
+			End If
+		End Function
+
+		Public Overrides Function GetHashCode() As Integer
+			Return InstanceID.GetHashCode()
+		End Function
+
+		Public Shared Operator =(x As AdapterEntry, y As AdapterEntry) As Boolean
+			Return x.Equals(y)
+		End Operator
+
+		Public Shared Operator <>(x As AdapterEntry, y As AdapterEntry) As Boolean
+			Return Not x = y
+		End Operator
+	End Class
 
 	Public Sub New(ByVal Session As CimSession, ByVal ModuleLogger As IModuleLogger, ByVal VirtualNetAdapterLogger As IVirtualNetAdapterLogger)
 		MyBase.New(Session, ModuleLogger)
@@ -98,18 +119,18 @@ Public Class VMNetAdapterInventory
 	''' <param name="MacAddress">The desired MAC in unformatted <see cref="String"/> format</param>
 	''' <returns>All virtual machine IDs that own an adapter with a matching MAC, in <see cref="List(Of String)"/> format</returns>
 	Public Function GetVmIDFromMac(ByVal MacAddress As String) As List(Of String)
-		Dim MatchingMacs As New List(Of String)
+		Dim MatchingVMIDs As New HashSet(Of String)
 		SyncLock AdaptersLock
 			CurrentAdapters.Where(Function(SearchAdapter As AdapterEntry) SearchAdapter.MAC = MacAddress
-				).ToList.ForEach(Sub(MatchingAdapter As AdapterEntry) MatchingMacs.Add(ExtractVmIDFromInstanceID(MatchingAdapter.InstanceID)))
+				).ToList.ForEach(Sub(MatchingAdapter As AdapterEntry) MatchingVMIDs.Add(ExtractVmIDFromInstanceID(MatchingAdapter.InstanceID)))
 		End SyncLock
-		Return MatchingMacs
+		Return MatchingVMIDs.ToList
 	End Function
 
 	Public Overrides ReadOnly Property ModuleName As String = "Virtual Network Adapter Inventory"
 
-	Private VirtualNetAdapterLogger As IVirtualNetAdapterLogger
-	Private AdaptersLock As New Object
+	Private ReadOnly VirtualNetAdapterLogger As IVirtualNetAdapterLogger
+	Private ReadOnly AdaptersLock As New Object
 	Private Property CurrentAdapters As List(Of AdapterEntry)
 
 	''' <summary>
