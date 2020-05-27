@@ -43,6 +43,27 @@ Namespace CIMitar.Virtualization
 			DeleteSnapshot = 72
 			ClearSnapshotState = 73
 		End Enum
+
+		Public Enum VirtualMachineStates As UShort
+			Unknown = 0
+			Other = 1
+			Running = 2
+			Off = 3
+			Stopping = 4
+			EnabledOffline = 5
+			Saved = 6
+			InTest = 7
+			Deferred = 8
+			Quiesced = 9
+			Starting = 10
+		End Enum
+
+		Public Enum VirtualizationMethodErrors As UShort
+			NoError = 0
+			JobStarted = 4096
+			AccessDenied = 32769
+			InvalidState = 32775
+		End Enum
 	End Module
 
 	'Public Module CustomCimVirtualizationEvents
