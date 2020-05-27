@@ -7,6 +7,8 @@ Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Service", "Service\Service.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ServiceMessages", "ServiceMessages\ServiceMessages.vcxproj", "{D4B317FD-03AA-4C88-BCD1-28B9B3E06D94}"
 EndProject
+Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "Setup", "Setup\Setup.wixproj", "{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,14 @@ Global
 		{D4B317FD-03AA-4C88-BCD1-28B9B3E06D94}.Release|x64.Build.0 = Release|x64
 		{D4B317FD-03AA-4C88-BCD1-28B9B3E06D94}.Release|x86.ActiveCfg = Release|Win32
 		{D4B317FD-03AA-4C88-BCD1-28B9B3E06D94}.Release|x86.Build.0 = Release|Win32
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Debug|x64.ActiveCfg = Debug|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Debug|x86.ActiveCfg = Debug|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Debug|x86.Build.0 = Debug|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Release|Any CPU.ActiveCfg = Release|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Release|x64.ActiveCfg = Release|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Release|x86.ActiveCfg = Release|x86
+		{8B3DF2B9-F938-4930-BDBF-042A7DA2E4AD}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

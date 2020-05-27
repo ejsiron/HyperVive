@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Id="A7CDE5E1-2FEE-43D0-B366-849ADC03DF53" Name="HyperVive" Language="1033" Version="3.0.0.0" Manufacturer="Eric Siron" UpgradeCode="4c4e2abc-d609-47e3-98d9-ff506e8adf57">
+		<Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." Disallow="no" />
+    <MediaTemplate CabinetTemplate="hv{0}.cab" CompressionLevel="high" EmbedCab="yes" />
+
+    <!-- Icon that appears in ARP -->
+    <Icon Id="HYPERVIVEICO" SourceFile="$(var.Service.ProjectDir)HyperVive.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="HYPERVIVEICO"/>
+
+    <!-- Feature Configuration -->
+		<Feature Id="ProductFeature" Title="HyperVive" Level="1" ConfigurableDirectory="INSTALLFOLDER">
+			<ComponentGroupRef Id="ProductComponents" />
+		</Feature>
+
+    <!-- UI Configuration -->
+    <WixVariable Id="WixUILicenseRtf" Value="MITLicense.rtf"/>
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch WAC Certificate Selector"/>
+    <UI>
+      <UIRef Id="WixUI_Mondo"/>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">
+        WIXUI_EXITDIALOGOPTIONALCHECKBOX=1 and NOT Installed
+      </Publish>
+    </UI>
+	</Product>
+
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="INSTALLFOLDER" Name="HyperVive" />
+			</Directory>
+		</Directory>
+	</Fragment>
+
+	<Fragment>
+		<ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+			 <Component Id="ProductComponent">
+         <File Id="EXEMAIN" Name="HyperVive.exe" DiskId="1" Source="$(var.Service.TargetDir)" KeyPath="yes" />
+			 </Component> 
+		</ComponentGroup>
+	</Fragment>
+</Wix>
