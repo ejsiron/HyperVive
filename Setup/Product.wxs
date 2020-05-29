@@ -17,9 +17,11 @@
 
 		<!-- UI Configuration -->
 		<WixVariable Id="WixUILicenseRtf" Value="MITLicense.rtf"/>
+		<WixVariable Id="WixUIBannerBmp" Value="HyperViveSetupBanner.bmp" />
+		<WixVariable Id="WixUIDialogBmp" Value="HyperViveSetupBackground.bmp" />
 		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
 		<UI>
-			<UIRef Id="WixUI_Mondo"/>
+			<UIRef Id="WixUI_InstallDir"/>
 		</UI>
 	</Product>
 
@@ -35,7 +37,7 @@
 		<ComponentGroup Id="HyperViveComponents" Directory="INSTALLFOLDER">
 			<Component Id="ServiceComponent">
 				<File Id="SERVICEMAIN" Name="HyperVive.exe" DiskId="1" Source="$(var.Service.TargetDir)" KeyPath="yes" />
-				<ServiceInstall Id="HYPERVIVESERVICEINSTALL" Account=".\LocalSystem" Name="HyperVive" DisplayName="HyperVive" Description="Performs utility functions for Hyper-V virtual machines, such as wake-on-LAN operations" Interactive="no" Start="auto" Vital="yes" ErrorControl="normal" Type="ownProcess">
+				<ServiceInstall Id="HYPERVIVESERVICEINSTALL" Account=".\LocalSystem" Name="HyperVive" DisplayName="HyperVive" Description="Performs utility functions for Hyper-V and its virtual machines" Interactive="no" Start="auto" Vital="yes" ErrorControl="normal" Type="ownProcess">
 					<util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="restart" />
 				</ServiceInstall>
 				<ServiceControl Id="HYPERVIVESERVICECONTROL" Name="HyperVive" Start="install" Stop="both" Remove="uninstall" Wait="no" />

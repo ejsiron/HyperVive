@@ -89,12 +89,6 @@
       <DependentUpon>Application.myapp</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Compile Include="ProjectInstaller.Designer.vb">
-      <DependentUpon>ProjectInstaller.vb</DependentUpon>
-    </Compile>
-    <Compile Include="ProjectInstaller.vb">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="RegistryController.vb" />
     <Compile Include="LogController.vb" />
     <Compile Include="VirtualizationCimController.vb" />
@@ -126,9 +120,6 @@
       <LastGenOutput>Resources.Designer.vb</LastGenOutput>
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <SubType>Designer</SubType>
-    </EmbeddedResource>
-    <EmbeddedResource Include="ProjectInstaller.resx">
-      <DependentUpon>ProjectInstaller.vb</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="HyperViveService.resx">
       <DependentUpon>HyperViveService.vb</DependentUpon>

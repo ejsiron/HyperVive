@@ -2,7 +2,7 @@
 
 A service that performs utility functions for Hyper-V virtual machines
 
-Current version: 2.0
+Current version: 3.0
 
 ## Version 2.0 feature: Checkpoint Watcher
 
@@ -68,37 +68,15 @@ Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\HyperVive\ -Name 
 
 Changes take effect instantly; you do not need to restart the service.
 
-## Installation Instructions
+## Installation and Removal Instructions
 
-Copy _HyperVive.exe_ to a suitable location. _Recommended_: C:\Program Files (x86)\HyperVive
+Use the latest SetupHyperVive.msi from the [Releases page](https://github.com/ejsiron/HyperVive/releases) to install, remove, or upgrade.
 
-Run the following at an elevated PowerShell prompt (make adjustments to the path as necessary):
-
-```PowerShell
-C:\windows\Microsoft.NET\Framework\v4.0.30319\installutil.exe 'C:\Program Files (x86)\HyperVive\HyperVive.exe'
-Start-Service HyperVive
-```
-
-## Removal Instructions
-
-Run the following (make adjustments to the path as necessary)
-
-```PowerShell
-Stop-Service HyperVive
-C:\windows\Microsoft.NET\Framework\v4.0.30319\installutil.exe /u 'C:\Program Files (x86)\HyperVive\HyperVive.exe'
-```
-
-Delete the folder that you created to hold HyperVive.exe. You may also need to delete the registry key `HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services\HyperVive`.
-
-## Future Enhancements
-
-I plan to add the following:
-
-- A proper MSI installer
+*NOTE*: The MSI can cleanly upgrade manually-installed instances of versions 1 and 2.
 
 ## HyperVive Event IDs
 
-The following reference contains all HyperVive event ID codes and their basic meanings. Check the specifc event for details.
+The following reference contains all HyperVive event ID codes and their basic meanings. Check the specific event for details.
 
 - 1000: Unexpected application error
 - 1001: Module-specific error

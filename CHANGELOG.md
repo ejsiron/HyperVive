@@ -1,5 +1,11 @@
 # Changes to HyperVive
 
+## 3.0: May 28, 2020
+
+- Converted internal mechanisms from event-based to direct callbacks
+- Added full installer
+- Removed built-in installer from service executable
+
 ## 2.0: April 10, 2020
 
 - Added checkpoint watching capabilities
