@@ -28,70 +28,19 @@ Public Class VMInfo
 	Public Property SourceIP As String
 End Class
 
-Public Module VMStartControllerEvents
-	''' <summary>
-	''' Indicates the result of a virtual machine start
-	''' </summary>
-	Public Class VMStartResultEventArgs
-		Inherits EventArgs
-		''' <summary>
-		''' Data about the virtual machine start
-		''' </summary>
-		''' <returns><see cref="VMInfo"/></returns>
-		Public Property VirtualMachineInfo As VMInfo
-		''' <summary>
-		''' Indicates procedure success
-		''' </summary>
-		''' <returns><see cref="Boolean"/></returns>
-		Public ReadOnly Property Success As Boolean
-			Get
-				Return ResultCode = 0US
-			End Get
-		End Property
-		''' <summary>
-		''' Numerical code for the result
-		''' </summary>
-		''' <returns><see cref="UShort"/></returns>
-		Public Property ResultCode As UShort = 0US
-		''' <summary>
-		''' Result explanation
-		''' </summary>
-		''' <returns><see cref="String"/></returns>
-		Public Property ResultText As String
-	End Class
-End Module
-
 ''' <summary>
 ''' Starts all virtual machines with an InstanceID in a supplied list
 ''' </summary>
 Public Class VMStartController
-	Private Session As CimSession
-
-	''' <summary>
-	''' Raised when the controller successfully starts a virtual machine
-	''' </summary>
-	''' <param name="sender">The <see cref="VMStartController"/> object that started the virtual machine</param>
-	''' <param name="e">A <see cref="VMStartResultEventArgs"/> with information about the virtual machine</param>
-	Public Event StartResult(ByVal sender As Object, ByVal e As VMStartResultEventArgs)
-	''' <summary>
-	''' Sends debug-level messages
-	''' </summary>
-	''' <param name="sender">The <see cref="VMStartController"/> reporting the message</param>
-	''' <param name="e">A <see cref="DebugMessageEventArgs"/> with message details</param>
-	Public Event DebugMessageGenerated(ByVal sender As Object, ByVal e As DebugMessageEventArgs)
-	'''' <summary>
-	'''' Reports processing errors in a VM Start Controller
-	'''' </summary>
-	'''' <param name="sender">The <see cref="VMStartController"/> instance reporting the problem</param>
-	'''' <param name="e">A <see cref="ModuleExceptionEventArgs"/> with </param>
-	'Public Event StarterError(ByVal sender As Object, ByVal e As ModuleExceptionEventArgs)
+	Inherits ModuleWithCimBase
 
 	''' <summary>
 	''' Creates a new VM Start Controller
 	''' </summary>
 	''' <param name="Session">A <see cref="CimSession"/> on the system that owns the target virtual machines</param>
-	Public Sub New(ByVal Session As CimSession)
-		Me.Session = Session
+	Public Sub New(ByVal Session As CimSession, ByVal ModuleLogger As IModuleLogger, ByVal VirtualMachineStartLogger As IVirtualMachineStartLogger)
+		MyBase.New(Session, ModuleLogger)
+		VMStartLogger = VirtualMachineStartLogger
 	End Sub
 
 	''' <summary>
@@ -101,12 +50,12 @@ Public Class VMStartController
 	''' <param name="MacAddress">The MAC address owned by the VM(s). Unvalidated, passes through to events.</param>
 	''' <param name="VmIDs">A <see cref="List(Of String)"/> of virtual machine IDs, in <see cref="String"/> format</param>
 	''' <param name="SourceIP">A <see cref="String"/> that contains the source IP of the WOL frame. Unvalidated, passes through to events.</param>
-	Public Async Sub Start(ByVal MacAddress As String, ByVal VmIDs As List(Of String), SourceIP As String)
+	Public Async Sub StartVM(ByVal MacAddress As String, ByVal VmIDs As List(Of String), SourceIP As String)
 		Using VMLister As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
 			.QueryText = String.Format(CimQueryTemplateVirtualMachine, ConvertVMListToQueryFilter(VmIDs)),
 			.KeysOnly = True
 		}
-			Using TargetVMs As CimInstanceList = Await VMLister.StartAsync
+			Using TargetVMs As CimInstanceCollection = Await VMLister.StartAsync
 				Parallel.ForEach(TargetVMs,
 					Async Sub(ByVal VM As CimInstance)
 						Dim CurrentState As VirtualMachineStates = CType(VM.CimInstanceProperties(PropertyNameEnabledState).Value, VirtualMachineStates)
@@ -128,7 +77,7 @@ Public Class VMStartController
 									If ResultCode = VirtualizationMethodErrors.JobStarted Then
 										Dim JobReference As CimInstance = CType(StartResult.OutParameters(CimParameterNameJob).Value, CimInstance)
 										JobId = JobReference.InstancePropertyString(PropertyNameInstanceID)
-										RaiseEvent DebugMessageGenerated(Me, New DebugMessageEventArgs(String.Format(JobCreatedMessageTemplate, JobId, Info.Name, Info.ID), EventIdDebugInitiatedVMStart))
+										VMStartLogger.LogDebugVMStart(Info.Name, Info.ID, JobId)
 										Job = Await VirtualizationJobCompletionController.WatchAsync(Session, JobId)
 									End If
 								End Using
@@ -140,9 +89,10 @@ Public Class VMStartController
 		End Using
 	End Sub
 
-	Private Const ModuleName As String = "VM Starter"
+	Public Overrides ReadOnly Property ModuleName As String = "VM Starter"
 	Private Const DefaultFailureReason As String = "Code not recognized"
-	Private Const JobCreatedMessageTemplate As String = "Created start job with instance ID {0} for VM {1} with GUID {0}"
+
+	Private ReadOnly VMStartLogger As IVirtualMachineStartLogger
 
 	Private Shared Function ConvertVMListToQueryFilter(ByVal VmIDs As List(Of String)) As String
 		Dim ListEntries As New List(Of String)(VmIDs.Count)
@@ -157,18 +107,16 @@ Public Class VMStartController
 	End Function
 
 	Private Sub ProcessVMStartResult(ByVal ResultCode As UShort, ByVal Info As VMInfo, ByRef JobInstance As CimInstance)
-		Dim ResultMessage As New VMStartResultEventArgs With {.VirtualMachineInfo = Info, .ResultCode = ResultCode}
+		Dim ResultText As String = DefaultFailureReason
 		If JobInstance IsNot Nothing Then
-			ResultMessage.ResultCode = JobInstance.InstancePropertyUInt16(PropertyNameErrorCode)
-			ResultMessage.ResultText = JobInstance.InstancePropertyString(PropertyNameJobStatus)
+			ResultCode = JobInstance.InstancePropertyUInt16(PropertyNameErrorCode)
+			ResultText = JobInstance.InstancePropertyString(PropertyNameJobStatus)
 			JobInstance.Dispose()
 		Else
 			If [Enum].IsDefined(GetType(VirtualizationMethodErrors), ResultCode) Then
-				ResultMessage.ResultText = CType(ResultCode, VirtualizationMethodErrors).ToString
-			Else
-				ResultMessage.ResultText = DefaultFailureReason
+				ResultText = CType(ResultCode, VirtualizationMethodErrors).ToString
 			End If
 		End If
-		RaiseEvent StartResult(Me, ResultMessage)
+		VMStartLogger?.LogVirtualMachineStart(Info.Name, Info.ID, Info.MacAddress, Info.SourceIP, ResultCode = 0, ResultCode, ResultText)
 	End Sub
 End Class

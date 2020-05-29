@@ -50,6 +50,9 @@
   <PropertyGroup>
     <ApplicationManifest>My Project\app.manifest</ApplicationManifest>
   </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>HyperVive.ico</ApplicationIcon>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Management.Infrastructure" />
     <Reference Include="System" />
@@ -79,18 +82,15 @@
     <Compile Include="AsyncExtensions.vb" />
     <Compile Include="GlobalConstants.vb" />
     <Compile Include="CheckpointJobWatcher.vb" />
+    <Compile Include="GlobalSuppressions.vb" />
+    <Compile Include="ServiceModuleInfrastructure.vb" />
     <Compile Include="My Project\Application.Designer.vb">
       <AutoGen>True</AutoGen>
       <DependentUpon>Application.myapp</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <Compile Include="ProjectInstaller.Designer.vb">
-      <DependentUpon>ProjectInstaller.vb</DependentUpon>
-    </Compile>
-    <Compile Include="ProjectInstaller.vb">
-      <SubType>Component</SubType>
-    </Compile>
     <Compile Include="RegistryController.vb" />
+    <Compile Include="LogController.vb" />
     <Compile Include="VirtualizationCimController.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="VMStartController.vb" />
@@ -121,9 +121,6 @@
       <CustomToolNamespace>My.Resources</CustomToolNamespace>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="ProjectInstaller.resx">
-      <DependentUpon>ProjectInstaller.vb</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="HyperViveService.resx">
       <DependentUpon>HyperViveService.vb</DependentUpon>
     </EmbeddedResource>
@@ -140,6 +137,9 @@
       <LastGenOutput>Settings.Designer.vb</LastGenOutput>
     </None>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="HyperVive.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
 </Project>

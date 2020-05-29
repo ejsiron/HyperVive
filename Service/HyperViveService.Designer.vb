@@ -47,7 +47,7 @@ Partial Class HyperViveService
 		'
 		Me.WOLServiceController.ServiceName = "HyperVive"
 		'
-		'WOLService
+		'HyperViveService
 		'
 		Me.AutoLog = False
 		Me.ServiceName = "HyperVive"

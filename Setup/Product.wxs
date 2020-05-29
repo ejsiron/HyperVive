@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+	<Product Id="A7CDE5E1-2FEE-43D0-B366-849ADC03DF53" Name="HyperVive" Language="1033" Version="3.0.0.0" Manufacturer="Eric Siron" UpgradeCode="4C4E2ABC-D609-47E3-98D9-FF506E8ADF57">
+		<Package InstallerVersion="301" Compressed="yes" InstallScope="perMachine" InstallPrivileges="elevated" />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." Disallow="no" />
+		<MediaTemplate CabinetTemplate="hv{0}.cab" CompressionLevel="high" EmbedCab="yes" />
+
+		<!-- Icon that appears in ARP -->
+		<Icon Id="HYPERVIVEICO" SourceFile="$(var.Service.ProjectDir)HyperVive.ico"/>
+		<Property Id="ARPPRODUCTICON" Value="HYPERVIVEICO"/>
+
+		<!-- Feature Configuration -->
+		<Feature Id="ProductFeature" Title="HyperVive" Level="1" ConfigurableDirectory="INSTALLFOLDER">
+			<ComponentGroupRef Id="HyperViveComponents" />
+		</Feature>
+
+		<!-- UI Configuration -->
+		<WixVariable Id="WixUILicenseRtf" Value="MITLicense.rtf"/>
+		<WixVariable Id="WixUIBannerBmp" Value="HyperViveSetupBanner.bmp" />
+		<WixVariable Id="WixUIDialogBmp" Value="HyperViveSetupBackground.bmp" />
+		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+		<UI>
+			<UIRef Id="WixUI_InstallDir"/>
+		</UI>
+	</Product>
+
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFilesFolder">
+				<Directory Id="INSTALLFOLDER" Name="HyperVive" />
+			</Directory>
+		</Directory>
+	</Fragment>
+
+	<Fragment>
+		<ComponentGroup Id="HyperViveComponents" Directory="INSTALLFOLDER">
+			<Component Id="ServiceComponent">
+				<File Id="SERVICEMAIN" Name="HyperVive.exe" DiskId="1" Source="$(var.Service.TargetDir)" KeyPath="yes" />
+				<ServiceInstall Id="HYPERVIVESERVICEINSTALL" Account=".\LocalSystem" Name="HyperVive" DisplayName="HyperVive" Description="Performs utility functions for Hyper-V and its virtual machines" Interactive="no" Start="auto" Vital="yes" ErrorControl="normal" Type="ownProcess">
+					<util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart" ThirdFailureActionType="restart" />
+				</ServiceInstall>
+				<ServiceControl Id="HYPERVIVESERVICECONTROL" Name="HyperVive" Start="install" Stop="both" Remove="uninstall" Wait="no" />
+				<util:EventSource Name="HyperVive" Log="Application" CategoryCount="7" CategoryMessageFile="[#MESSAGEFILE]" EventMessageFile="[#MESSAGEFILE]" ParameterMessageFile="[#MESSAGEFILE]" SupportsInformationals="yes" SupportsWarnings="yes" SupportsErrors="yes" />
+			</Component>
+			<Component Id="MessageFileComponent">
+				<File Id="MESSAGEFILE" Name="HyperViveServiceMessages.dll" DiskId="1" Source="$(var.ServiceMessages.TargetDir)$(var.ServiceMessages.Configuration)\$(var.ServiceMessages.TargetFileName)" />
+			</Component>
+		</ComponentGroup>
+	</Fragment>
+</Wix>

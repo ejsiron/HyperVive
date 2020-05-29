@@ -1,4 +1,5 @@
-﻿Imports System.Threading
+﻿Imports System.Runtime.CompilerServices
+Imports System.Threading
 Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 
@@ -42,21 +43,42 @@ Namespace CIMitar.Virtualization
 			DeleteSnapshot = 72
 			ClearSnapshotState = 73
 		End Enum
+
+		Public Enum VirtualMachineStates As UShort
+			Unknown = 0
+			Other = 1
+			Running = 2
+			Off = 3
+			Stopping = 4
+			EnabledOffline = 5
+			Saved = 6
+			InTest = 7
+			Deferred = 8
+			Quiesced = 9
+			Starting = 10
+		End Enum
+
+		Public Enum VirtualizationMethodErrors As UShort
+			NoError = 0
+			JobStarted = 4096
+			AccessDenied = 32769
+			InvalidState = 32775
+		End Enum
 	End Module
 
-	Public Module CustomCimVirtualizationEvents
-		Public Class VirtualizationJobNotFoundEventArgs
-			Inherits CimEventArgs
+	'Public Module CustomCimVirtualizationEvents
+	'	Public Class VirtualizationJobNotFoundEventArgs
+	'		Inherits CimEventArgs
 
-			Public Property InstanceID As String
-		End Class
+	'		Public Property InstanceID As String
+	'	End Class
 
-		Public Class VirtualizationJobCompletedArgs
-			Inherits CimEventArgs
+	'	Public Class VirtualizationJobCompletedArgs
+	'		Inherits CimEventArgs
 
-			Public Property JobInstance As CimInstance
-		End Class
-	End Module
+	'		Public Property JobInstance As CimInstance
+	'	End Class
+	'End Module
 
 	''' <summary>
 	''' Watches Msvm_ConcreteJob objects for completion. Resets itself upon job completion.
@@ -67,8 +89,8 @@ Namespace CIMitar.Virtualization
 			Me.Session = Session
 		End Sub
 
-		Public Event JobNotFound(ByVal sender As Object, ByVal e As VirtualizationJobNotFoundEventArgs)
-		Public Event JobCompleted(ByVal sender As Object, ByVal e As VirtualizationJobCompletedArgs)
+		Private ReadOnly JobNotFoundCallback As Action(Of CimSession, String)   ' InstanceID
+		Private ReadOnly JobCompletedCallback As Action(Of CimSession, CimInstance)
 
 		''' <summary>
 		''' Instance ID of the target Msvm_ConcreteJob, in <see cref="String"/> form.
@@ -87,7 +109,7 @@ Namespace CIMitar.Virtualization
 			Using JobWatcher As New CimAsyncQueryInstancesController(Session, NamespaceVirtualization) With {
 				.QueryText = String.Format(QueryTemplateMsvmConcreteJobById, JobInstanceID)
 				}
-				Dim JobList As CimInstanceList = Await JobWatcher.StartAsync
+				Dim JobList As CimInstanceCollection = Await JobWatcher.StartAsync
 				If JobList.Count > 0 Then
 					Job = JobList.First
 					While JobIsRunning(Job)
@@ -126,26 +148,23 @@ Namespace CIMitar.Virtualization
 		''' Recursively watches for an Msvm_ConcreteJob to complete.
 		''' </summary>
 		''' <param name="ControllerTask"></param>
-		Private Sub WatcherCallback(ControllerTask As Task(Of CimInstanceList))
+		Private Sub WatcherCallback(ControllerTask As Task(Of CimInstanceCollection))
 			If ControllerTask.Result.Count > 0 Then
 				If JobIsRunning(ControllerTask.Result.First) Then
 					Thread.Sleep(RecheckDelay)
 					JobSubscriber.RefreshAsync.ContinueWith(AddressOf WatcherCallback)
 					Return
 				Else
-					RaiseEvent JobCompleted(Me, New VirtualizationJobCompletedArgs With {
-						.Session = Session,
-						.JobInstance = ControllerTask.Result.First.Clone
-					})
+					JobCompletedCallback(Session, ControllerTask.Result.First.Clone)
 				End If
 			Else
-				RaiseEvent JobNotFound(Me, New VirtualizationJobNotFoundEventArgs With {.Session = Session, .InstanceID = InstanceID})
+				JobNotFoundCallback(Session, InstanceID)
 			End If
 			JobSubscriber.Dispose()
 			JobSubscriber = Nothing
 		End Sub
 
-		Private Session As CimSession
+		Private ReadOnly Session As CimSession
 		Private JobSubscriber As CimAsyncQueryInstancesController
 	End Class
 End Namespace
