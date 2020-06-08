@@ -1,5 +1,4 @@
-﻿Imports System.Runtime.CompilerServices
-Imports System.Threading
+﻿Imports System.Threading
 Imports HyperVive.CIMitar
 Imports Microsoft.Management.Infrastructure
 
@@ -38,6 +37,7 @@ Namespace CIMitar.Virtualization
 		End Enum
 
 		Public Enum VirtualizationJobTypes As UShort
+			DestroyVirtualMachine = 3
 			NewSnapshot = 70
 			ApplySnapshot = 71
 			DeleteSnapshot = 72

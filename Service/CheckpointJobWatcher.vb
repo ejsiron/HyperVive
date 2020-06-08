@@ -176,7 +176,6 @@ Public Class CheckpointJobWatcher
 	Protected Overridable Sub Dispose(disposing As Boolean)
 		If Not disposedValue Then
 			If disposing Then
-				JobSubscriber?.Cancel()
 				JobSubscriber?.Dispose()
 			End If
 		End If
