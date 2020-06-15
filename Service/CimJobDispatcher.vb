@@ -17,7 +17,6 @@ Imports Microsoft.Management.Infrastructure
 
 Namespace CIMitar
 	Public Class JobSubscriber
-		Implements IComparable
 
 		Public ReadOnly ID As New Guid
 		Public ReadOnly Session As CimSession
@@ -25,7 +24,7 @@ Namespace CIMitar
 		Public ReadOnly ClassName As String
 		Public ReadOnly JobType As VirtualizationJobTypes
 		Public ReadOnly Callback As Action(Of CimSubscriptionResult)
-		Public ReadOnly PropertyMatches As Dictionary(Of String, Object)
+		Public ReadOnly PropertyMatches As Dictionary(Of String, KeyValuePair(Of CimType, Object))
 
 		Public Overrides Function Equals(obj As Object) As Boolean
 			Dim other As JobSubscriber = TryCast(obj, JobSubscriber)
@@ -35,10 +34,6 @@ Namespace CIMitar
 			Return False
 		End Function
 
-		Public Function CompareTo(obj As Object) As Integer Implements IComparable.CompareTo
-			Throw New NotImplementedException()
-		End Function
-
 		Public Shared Operator =(ByVal x As JobSubscriber, ByVal y As JobSubscriber) As Boolean
 			Return x.ID = y.ID
 		End Operator
@@ -46,38 +41,28 @@ Namespace CIMitar
 		Public Shared Operator <>(ByVal x As JobSubscriber, ByVal y As JobSubscriber) As Boolean
 			Return x.ID <> y.ID
 		End Operator
+
+		Public Shared Operator =(ByVal x As JobSubscriber, ByVal y As Tuple(Of CimSession, String, String, Dictionary(Of String, KeyValuePair(Of CimType, Object)))) As Boolean
+
+		End Operator
+
+		Public Overrides Function GetHashCode() As Integer
+			Return ID.GetHashCode()
+		End Function
 	End Class
 
 	Public Class CIMJobDispatcher
 
-			Private Sub JobCreated(Result As CimSubscriptionResult)
+		Private Sub JobCreated(Result As CimSubscriptionResult)
 
-			End Sub
+		End Sub
 
-			Private Sub JobWatcherErrored(ByVal [Error] As CimException)
+		Private Sub JobWatcherErrored(ByVal [Error] As CimException)
 
-			End Sub
+		End Sub
 
-			Private ReadOnly JobCreationWatcher As InstanceCreationController
+		Private ReadOnly JobCreationWatcher As InstanceCreationController
 
-			Private disposedValue As Boolean
-
-			Protected Overridable Sub Dispose(disposing As Boolean)
-				If Not disposedValue Then
-					If disposing Then
-						JobCreationWatcher.Dispose()
-					End If
-
-					' TODO: free unmanaged resources (unmanaged objects) and override finalizer
-					' TODO: set large fields to null
-					disposedValue = True
-				End If
-			End Sub
-
-			Public Sub Dispose() Implements IDisposable.Dispose
-				' Do not change this code. Put cleanup code in 'Dispose(disposing As Boolean)' method
-				Dispose(disposing:=True)
-			End Sub
-		End Class
-	End Namespace
+	End Class
+End Namespace
 
