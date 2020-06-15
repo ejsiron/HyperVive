@@ -16,6 +16,33 @@ Imports HyperVive.CIMitar.Virtualization
 Imports Microsoft.Management.Infrastructure
 
 Namespace CIMitar
+
+	Public Class JobSubscriberData
+		Public ReadOnly [Namespace] As String
+		Public ReadOnly ClassName As String
+		Public ReadOnly Callback As String
+		Public ReadOnly PropertyMatches As Dictionary(Of String, KeyValuePair(Of CimType, Object))
+
+		Public Overrides Function Equals(obj As Object) As Boolean
+			Dim other As JobSubscriberData = TryCast(obj, JobSubscriberData)
+			If other IsNot Nothing AndAlso
+					other.Namespace = [Namespace] AndAlso
+					other.ClassName = ClassName AndAlso
+					other.Callback = Callback AndAlso
+					other.PropertyMatches.Count = PropertyMatches.Count Then
+
+				For Each ValueSet As KeyValuePair(Of String, KeyValuePair(Of CimType, Object)) In PropertyMatches
+					If Not (other.PropertyMatches.Keys.Contains(ValueSet.Key) AndAlso
+						ValueSet.Value.Key = other.PropertyMatches(ValueSet.Key).Key) Then
+						' todo: continue here, compare the value
+					End If
+					Return True
+				Next
+			End If
+			Return False
+		End Function
+	End Class
+
 	Public Class JobSubscriber
 
 		Public ReadOnly ID As New Guid
