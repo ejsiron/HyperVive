@@ -14,6 +14,11 @@
 
 Imports Microsoft.Management.Infrastructure
 Imports Microsoft.Management.Infrastructure.Options
+Imports System.CodeDom
+Imports System.Diagnostics.Eventing.Reader
+Imports System.Runtime.CompilerServices
+Imports System.Runtime.InteropServices
+Imports System.Runtime.InteropServices.WindowsRuntime
 Imports System.Threading
 
 Namespace CIMitar
@@ -157,6 +162,112 @@ Namespace CIMitar
 		Public Function InstancePropertyUInt16Array(ByVal Instance As CimInstance, ByVal Name As String) As List(Of UShort)
 			Return UInt16Array(ExtractInstanceProperty(Instance, Name))
 		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function ValueEquals(ByVal x As CimProperty, ByVal y As CimProperty) As Boolean
+			If x.GetValueType = y.GetValueType Then
+				Select Case x.CimType
+
+				End Select
+			End If
+			Return False
+		End Function
+
+		<Runtime.CompilerServices.Extension>
+		Public Function GetValueType(ByRef [Property] As CimProperty) As Type
+			Return GetCimPropertyValueType([Property].CimType)
+		End Function
+
+		Public Function GetCimPropertyValueType(ByVal CimValueType As CimType) As Type
+			Dim ValueType As Type
+			Select Case CimValueType
+				Case CimType.Boolean
+					ValueType = GetType(Boolean)
+				Case CimType.BooleanArray
+					ValueType = GetType(Boolean())
+				Case CimType.Char16
+					ValueType = GetType(Char)
+				Case CimType.Char16Array
+					ValueType = GetType(Char())
+				Case CimType.DateTime
+					ValueType = GetType(Date)
+				Case CimType.DateTimeArray
+					ValueType = GetType(Date())
+				Case CimType.Real32
+					ValueType = GetType(Single)
+				Case CimType.Real32Array
+					ValueType = GetType(Single())
+				Case CimType.Real64
+					ValueType = GetType(Double)
+				Case CimType.Real64Array
+					ValueType = GetType(Double())
+				Case CimType.ReferenceArray
+					ValueType = GetType(Object())
+				Case CimType.SInt8, CimType.SInt16
+					ValueType = GetType(Short)
+				Case CimType.SInt8Array, CimType.SInt16Array
+					ValueType = GetType(Short())
+				Case CimType.SInt32
+					ValueType = GetType(Integer)
+				Case CimType.SInt32Array
+					ValueType = GetType(Integer())
+				Case CimType.SInt64
+					ValueType = GetType(Long)
+				Case CimType.SInt64Array
+					ValueType = GetType(Long())
+				Case CimType.String
+					ValueType = GetType(String)
+				Case CimType.StringArray
+					ValueType = GetType(String())
+				Case CimType.UInt8, CimType.UInt16
+					ValueType = GetType(UShort)
+				Case CimType.UInt8Array, CimType.UInt16Array
+					ValueType = GetType(UShort())
+				Case CimType.UInt32
+					ValueType = GetType(UInteger)
+				Case CimType.UInt32Array
+					ValueType = GetType(UInteger())
+				Case CimType.UInt64
+					ValueType = GetType(ULong)
+				Case CimType.UInt64Array
+					ValueType = GetType(ULong())
+				Case Else
+					ValueType = GetType(Object)
+			End Select
+			Return ValueType
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Boolean) As Boolean
+			Return False
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Boolean()) As Boolean()
+			Return Array.Empty(Of Boolean)
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Char) As Char
+			Return Char.MinValue
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Char()) As Char()
+			Return Array.Empty(Of Char)
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Date) As Date
+			Return Date.MinValue
+		End Function
+
+		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
+		Public Function GetCimDefaultValue(ByRef Value As Date()) As Date()
+			Return Array.Empty(Of Date)
+		End Function
+
+
 	End Module
 
 	''' <summary>
