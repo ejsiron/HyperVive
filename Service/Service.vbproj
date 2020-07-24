@@ -80,6 +80,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncExtensions.vb" />
+    <Compile Include="CIMitar\CIMTypeEnhancements.vb" />
     <Compile Include="GlobalConstants.vb" />
     <Compile Include="CheckpointJobWatcher.vb" />
     <Compile Include="GlobalSuppressions.vb" />
@@ -91,12 +92,12 @@
     </Compile>
     <Compile Include="RegistryController.vb" />
     <Compile Include="LogController.vb" />
-    <Compile Include="VirtualizationCimController.vb" />
+    <Compile Include="CIMitar\VirtualizationCimController.vb" />
     <Compile Include="CIMJobDispatcher.vb" />
     <Compile Include="VMNetAdapterInventory.vb" />
     <Compile Include="VMStartController.vb" />
     <Compile Include="WakeOnLanListener.vb" />
-    <Compile Include="CIMController.vb" />
+    <Compile Include="CIMitar\CIMController.vb" />
     <Compile Include="HyperViveService.vb">
       <SubType>Component</SubType>
     </Compile>

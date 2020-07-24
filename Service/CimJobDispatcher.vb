@@ -41,6 +41,7 @@ Namespace CIMitar
 			End If
 			Return False
 		End Function
+
 	End Class
 
 	Public Class JobSubscriber
@@ -76,6 +77,7 @@ Namespace CIMitar
 		Public Overrides Function GetHashCode() As Integer
 			Return ID.GetHashCode()
 		End Function
+
 	End Class
 
 	Public Class CIMJobDispatcher
@@ -91,5 +93,5 @@ Namespace CIMitar
 		Private ReadOnly JobCreationWatcher As InstanceCreationController
 
 	End Class
-End Namespace
 
+End Namespace

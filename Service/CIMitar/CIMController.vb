@@ -12,14 +12,8 @@
 ' TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ' SOFTWARE.
 
-Imports Microsoft.Management.Infrastructure
-Imports Microsoft.Management.Infrastructure.Options
-Imports System.CodeDom
-Imports System.Diagnostics.Eventing.Reader
-Imports System.Runtime.CompilerServices
-Imports System.Runtime.InteropServices
-Imports System.Runtime.InteropServices.WindowsRuntime
 Imports System.Threading
+Imports Microsoft.Management.Infrastructure
 
 Namespace CIMitar
 	Public Module Strings
@@ -40,6 +34,7 @@ Namespace CIMitar
 	''' Utility extensions for built-in Microsoft.Management.Infrastructure objects
 	''' </summary>
 	Public Module CimExtensions
+
 		''' <summary>
 		''' Retrieves the <see cref="CimInstance"/> that triggered a CIM_Indication or __InstanceOperationEvent from a <see cref="CimSubscriptionResult"/> object
 		''' </summary>
@@ -120,7 +115,10 @@ Namespace CIMitar
 			If [Property] IsNot Nothing AndAlso [Property].Value IsNot Nothing AndAlso [Property].CimType = ExpectedType Then
 				Return CType([Property].Value, T)
 			Else
-				Return DefaultValue
+				' TODO: this will crash the app if someone tries to use an incompatible type
+				' for now, consider that the price they pay for trying to retrieve a value without knowing its type
+				Dim TargetType As Type = GetCimPropertyManagedType([Property].CimType)
+				Return CType(GetCimDefaultValue(CTypeDynamic([Property].Value, TargetType)), T)
 			End If
 		End Function
 
@@ -165,7 +163,7 @@ Namespace CIMitar
 
 		<Runtime.CompilerServices.Extension>
 		Public Function ValueEquals(ByVal x As CimProperty, ByVal y As CimProperty) As Boolean
-			If x.GetValueType = y.GetValueType Then
+			If x.GetManagedType = y.GetManagedType Then
 				Select Case x.CimType
 
 				End Select
@@ -174,97 +172,8 @@ Namespace CIMitar
 		End Function
 
 		<Runtime.CompilerServices.Extension>
-		Public Function GetValueType(ByRef [Property] As CimProperty) As Type
-			Return GetCimPropertyValueType([Property].CimType)
-		End Function
-
-		Public Function GetCimPropertyValueType(ByVal CimValueType As CimType) As Type
-			Dim ValueType As Type
-			Select Case CimValueType
-				Case CimType.Boolean
-					ValueType = GetType(Boolean)
-				Case CimType.BooleanArray
-					ValueType = GetType(Boolean())
-				Case CimType.Char16
-					ValueType = GetType(Char)
-				Case CimType.Char16Array
-					ValueType = GetType(Char())
-				Case CimType.DateTime
-					ValueType = GetType(Date)
-				Case CimType.DateTimeArray
-					ValueType = GetType(Date())
-				Case CimType.Real32
-					ValueType = GetType(Single)
-				Case CimType.Real32Array
-					ValueType = GetType(Single())
-				Case CimType.Real64
-					ValueType = GetType(Double)
-				Case CimType.Real64Array
-					ValueType = GetType(Double())
-				Case CimType.ReferenceArray
-					ValueType = GetType(Object())
-				Case CimType.SInt8, CimType.SInt16
-					ValueType = GetType(Short)
-				Case CimType.SInt8Array, CimType.SInt16Array
-					ValueType = GetType(Short())
-				Case CimType.SInt32
-					ValueType = GetType(Integer)
-				Case CimType.SInt32Array
-					ValueType = GetType(Integer())
-				Case CimType.SInt64
-					ValueType = GetType(Long)
-				Case CimType.SInt64Array
-					ValueType = GetType(Long())
-				Case CimType.String
-					ValueType = GetType(String)
-				Case CimType.StringArray
-					ValueType = GetType(String())
-				Case CimType.UInt8, CimType.UInt16
-					ValueType = GetType(UShort)
-				Case CimType.UInt8Array, CimType.UInt16Array
-					ValueType = GetType(UShort())
-				Case CimType.UInt32
-					ValueType = GetType(UInteger)
-				Case CimType.UInt32Array
-					ValueType = GetType(UInteger())
-				Case CimType.UInt64
-					ValueType = GetType(ULong)
-				Case CimType.UInt64Array
-					ValueType = GetType(ULong())
-				Case Else
-					ValueType = GetType(Object)
-			End Select
-			Return ValueType
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Boolean) As Boolean
-			Return False
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Boolean()) As Boolean()
-			Return Array.Empty(Of Boolean)
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Char) As Char
-			Return Char.MinValue
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Char()) As Char()
-			Return Array.Empty(Of Char)
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Date) As Date
-			Return Date.MinValue
-		End Function
-
-		<CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter", Justification:="Overload")>
-		Public Function GetCimDefaultValue(ByRef Value As Date()) As Date()
-			Return Array.Empty(Of Date)
+		Public Function GetManagedType(ByRef [Property] As CimProperty) As Type
+			Return GetCimPropertyManagedType([Property].CimType)
 		End Function
 
 
@@ -302,6 +211,7 @@ Namespace CIMitar
 		End Function
 
 #Region "CimInstanceList IDisposable Support"
+
 		Private disposedValue As Boolean
 
 		Protected Overridable Sub Dispose(disposing As Boolean)
@@ -316,7 +226,9 @@ Namespace CIMitar
 		Public Sub Dispose() Implements IDisposable.Dispose
 			Dispose(True)
 		End Sub
+
 #End Region
+
 	End Class
 
 	''' <summary>
@@ -490,7 +402,9 @@ Namespace CIMitar
 		End Class
 
 #Region "CimOperatorBase IDisposable Support"
+
 		Private disposedValue As Boolean
+
 		Protected Overridable Sub Dispose(disposing As Boolean)
 			If Not disposedValue Then
 				If disposing Then
@@ -503,7 +417,9 @@ Namespace CIMitar
 		Public Sub Dispose() Implements IDisposable.Dispose
 			Dispose(True)
 		End Sub
+
 #End Region
+
 	End Class
 
 	''' <summary>
@@ -549,6 +465,7 @@ Namespace CIMitar
 			End If
 			MyBase.Reset(CompleteClean)
 		End Sub
+
 	End Class
 
 	''' <summary>
@@ -594,6 +511,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.GetInstanceAsync(Instance.CimSystemProperties.Namespace, Instance)
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -634,6 +552,7 @@ Namespace CIMitar
 			Instances?.Clear()
 			MyBase.Reset(CompleteClean)
 		End Sub
+
 	End Class
 
 	''' <summary>
@@ -662,6 +581,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.EnumerateInstancesAsync([Namespace], ClassName, AsyncOptions)
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -690,6 +610,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.QueryInstancesAsync([Namespace], QueryLanguage, QueryText, AsyncOptions)
 		End Function
+
 	End Class
 
 	Public Class AsyncAssociatedInstancesController
@@ -706,6 +627,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimInstance)
 			Return Session.EnumerateAssociatedInstancesAsync([Namespace], SourceInstance, AssociationClassName, ResultClass, Nothing, Nothing, AsyncOptions)
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -770,6 +692,7 @@ Namespace CIMitar
 			End If
 			MyBase.Reset(CompleteClean)
 		End Sub
+
 	End Class
 
 	''' <summary>
@@ -796,6 +719,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
 			Return Session.InvokeMethodAsync([Namespace], Instance, MethodName, InputParameters, AsyncOptions)
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -822,6 +746,7 @@ Namespace CIMitar
 		Protected Overrides Function InvokeOperation() As IObservable(Of CimMethodResultBase)
 			Return Session.InvokeMethodAsync([Namespace], ClassName, MethodName, InputParameters, AsyncOptions)
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -884,12 +809,14 @@ Namespace CIMitar
 		Protected Overrides Sub ReportCompletion()
 			' subscriptions do not report completion
 		End Sub
+
 	End Class
 
 	''' <summary>
 	''' Selector for WMI or CIM objects when both possibilities exist. Ex: __InstanceCreationEvent vs. CIM_InstCreation
 	''' </summary>
 	Public Enum Hierarchy
+
 		''' <summary>
 		''' Use for objects such as CIM_InstCreation, CIM_InstModification, and CIM_InstDeletion
 		''' </summary>
@@ -899,6 +826,7 @@ Namespace CIMitar
 		''' Use for objects such as __InstanceCreationEvent, __InstanceModificationEvent, and __InstanceDeletionEvent
 		''' </summary>
 		WMI
+
 	End Enum
 
 	''' <summary>
@@ -963,6 +891,7 @@ Namespace CIMitar
 			QueryText = String.Format(QueryTemplateTimedEvent, IndicationClass, QueryInterval, Selector, WatchedClassName)
 			Return MyBase.InvokeOperation()
 		End Function
+
 	End Class
 
 	''' <summary>
@@ -982,6 +911,7 @@ Namespace CIMitar
 		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
 			MyBase.New(Session, IndicationType.Creation, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
+
 	End Class
 
 	''' <summary>
@@ -1001,6 +931,7 @@ Namespace CIMitar
 		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
 			MyBase.New(Session, IndicationType.Modification, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
+
 	End Class
 
 	''' <summary>
@@ -1020,5 +951,7 @@ Namespace CIMitar
 		Public Sub New(ByVal Session As CimSession, ByVal [Namespace] As String, ByVal WatchedClassName As String, ByVal ResultCallbackAction As Action(Of CimSubscriptionResult), ByVal ErrorCallbackAction As Action(Of CimException), Optional ByVal WatchHierarchy As Hierarchy = Hierarchy.WMI)
 			MyBase.New(Session, IndicationType.Deletion, [Namespace], WatchedClassName, WatchHierarchy, ResultCallbackAction, ErrorCallbackAction)
 		End Sub
+
 	End Class
+
 End Namespace
